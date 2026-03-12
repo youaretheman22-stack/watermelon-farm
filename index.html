@@ -2479,27 +2479,35 @@ function moveLogToFolder(logId, fromFolderId, toFolderId) {
   renderSprayLogs();
 }
 
-// ── 터치 드래그 (모바일) ──
+// ── 터치 드래그 (모바일) - 롱프레스 방식 ──
 let _touchLogId = null, _touchFromFolder = null, _touchGhost = null;
+let _touchTimer = null, _touchItem = null;
 
 function setupTouchDropZone(el, folderId) { el._folderId = folderId; }
 
 function initSprayTouchDrag() {
   document.addEventListener('touchstart', e => {
-    // 메뉴 버튼/드롭다운/수정삭제 버튼 터치 시 드래그 무시
-    if (e.target.closest('.log-menu-btn, .log-menu-dropdown, [data-edit-id], [data-delete-id]')) return;
+    // 메뉴/버튼 터치 시 완전 무시
+    if (e.target.closest('.log-menu-btn, .log-menu-dropdown, .log-menu-item, .log-menu-wrap, [data-edit-id], [data-delete-id]')) return;
+
     const item = e.target.closest('[data-log-id][draggable]');
     if (!item) return;
-    _touchLogId = Number(item.dataset.logId);
-    _touchFromFolder = item.dataset.folderId || null;
-    // 고스트 생성
-    _touchGhost = item.cloneNode(true);
-    _touchGhost.style.cssText = `position:fixed;opacity:0.7;pointer-events:none;z-index:9999;width:${item.offsetWidth}px;top:0;left:0;transform:scale(0.95);`;
-    document.body.appendChild(_touchGhost);
-    item.classList.add('dragging');
+
+    _touchItem = item;
+    // 500ms 롱프레스 후 드래그 시작
+    _touchTimer = setTimeout(() => {
+      _touchLogId = Number(item.dataset.logId);
+      _touchFromFolder = item.dataset.folderId || null;
+      _touchGhost = item.cloneNode(true);
+      _touchGhost.style.cssText = `position:fixed;opacity:0.7;pointer-events:none;z-index:9999;width:${item.offsetWidth}px;top:0;left:0;transform:scale(0.95);`;
+      document.body.appendChild(_touchGhost);
+      item.classList.add('dragging');
+    }, 500);
   }, {passive: true});
 
   document.addEventListener('touchmove', e => {
+    // 롱프레스 중 움직이면 타이머 취소
+    if (_touchTimer && !_touchLogId) { clearTimeout(_touchTimer); _touchTimer = null; return; }
     if (!_touchLogId) return;
     e.preventDefault();
     const t = e.touches[0];
@@ -2515,6 +2523,8 @@ function initSprayTouchDrag() {
   }, {passive: false});
 
   document.addEventListener('touchend', e => {
+    // 롱프레스 타이머 취소 (짧은 탭)
+    if (_touchTimer) { clearTimeout(_touchTimer); _touchTimer = null; }
     if (!_touchLogId) return;
     const t = e.changedTouches[0];
     if (_touchGhost) { _touchGhost.remove(); _touchGhost = null; }
