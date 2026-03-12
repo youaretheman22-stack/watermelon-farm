@@ -2486,6 +2486,8 @@ function setupTouchDropZone(el, folderId) { el._folderId = folderId; }
 
 function initSprayTouchDrag() {
   document.addEventListener('touchstart', e => {
+    // 메뉴 버튼/드롭다운/수정삭제 버튼 터치 시 드래그 무시
+    if (e.target.closest('.log-menu-btn, .log-menu-dropdown, [data-edit-id], [data-delete-id]')) return;
     const item = e.target.closest('[data-log-id][draggable]');
     if (!item) return;
     _touchLogId = Number(item.dataset.logId);
