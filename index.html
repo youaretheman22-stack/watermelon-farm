@@ -456,6 +456,61 @@
 
   .log-item.type-관주 { border-left-color: #3b82f6; }
   .log-item.type-소독 { border-left-color: var(--melon); }
+
+  /* 소독/엽면 폴더 */
+  .spray-folder {
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    background: white;
+  }
+  .spray-folder-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #f8f9fa;
+    cursor: pointer;
+    user-select: none;
+  }
+  .spray-folder-title {
+    flex: 1;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--ink);
+    outline: none;
+    border: none;
+    background: transparent;
+    font-family: Noto Serif KR, serif;
+  }
+  .spray-folder-title:focus {
+    border-bottom: 1.5px solid var(--green-mid);
+  }
+  .spray-folder-drop {
+    min-height: 52px;
+    padding: 8px;
+    transition: background 0.15s;
+  }
+  .spray-folder-drop.drag-over {
+    background: rgba(45,106,79,0.06);
+    border-top: 2px dashed var(--green-mid);
+  }
+  .spray-folder-empty {
+    text-align: center;
+    color: #ccc;
+    font-size: 0.78rem;
+    padding: 12px 0;
+    pointer-events: none;
+  }
+  .spray-unassigned-header {
+    font-size: 0.78rem;
+    color: var(--ink-light);
+    margin-bottom: 8px;
+    margin-top: 4px;
+  }
+  .log-item[draggable] { cursor: grab; }
+  .log-item.dragging { opacity: 0.4; }
   .log-item.type-순치기 { border-left-color: #10b981; }
   .log-item.type-적과 { border-left-color: #f59e0b; }
   .log-item.type-기타 { border-left-color: #8b5cf6; }
@@ -948,6 +1003,7 @@
         <div class="fert-per-wrap" style="display:flex;gap:4px">
           <button class="per-btn active" onclick="togglePer(this,'동당')">동당</button>
           <button class="per-btn" onclick="togglePer(this,'총량')">총량</button>
+          <button class="per-btn" onclick="togglePer(this,'말')">말</button>
         </div>
       </div>
     </div>
@@ -987,33 +1043,29 @@
 
   <!-- 탭: 소독/엽면시비 일지 -->
   <div id="tab-spray" class="tab-content">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="spray-zone-filter">
-      <button class="zone-btn active" onclick="filterSpray(this,'전체')">📋 전체 <span class="zone-count" id="spray-cnt-전체">0</span></button>
-      <button class="zone-btn" onclick="filterSpray(this,'집앞')" style="border-color:#6366f1">🏠 집앞3 <span class="zone-count" id="spray-cnt-집앞">0</span></button>
-      <button class="zone-btn" onclick="filterSpray(this,'못자리')" style="border-color:#0ea5e9">💧 못자리옆3 <span class="zone-count" id="spray-cnt-못자리">0</span></button>
-      <button class="zone-btn" onclick="filterSpray(this,'연수형네앞')" style="border-color:#f59e0b">🌾 연수형네앞20 <span class="zone-count" id="spray-cnt-연수형네앞">0</span></button>
-      <button class="zone-btn" onclick="filterSpray(this,'짧은하우스')" style="border-color:#10b981">🏗 짧은하우스6 <span class="zone-count" id="spray-cnt-짧은하우스">0</span></button>
-      <button class="zone-btn" onclick="filterSpray(this,'말장')" style="border-color:#e76f51">🌿 말장8 <span class="zone-count" id="spray-cnt-말장">0</span></button>
-      <button class="zone-btn" onclick="filterSpray(this,'말장NEW1')" style="border-color:#d946ef">🆕 말장NEW1 <span class="zone-count" id="spray-cnt-말장NEW1">0</span></button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px">
+      <button onclick="addSprayFolder()" style="padding:7px 14px;background:white;color:var(--green-mid);border:1.5px solid var(--green-mid);border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 폴더 만들기</button>
+      <button onclick="openSprayQuickAdd()" style="padding:7px 14px;background:var(--green-mid);color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 빠른입력</button>
     </div>
-    <div class="log-list" id="spray-list">
-      <div class="empty-state">
-        <div class="icon">🧪</div>
-        <p>소독/엽면시비 기록이 없어요.<br>기록 입력에서 소독/엽면시비를 선택해 기록하세요!</p>
-      </div>
-    </div>
+    <!-- 폴더 목록 -->
+    <div id="spray-folders"></div>
+    <!-- 미분류 로그 -->
+    <div id="spray-unassigned"></div>
   </div>
 
   <!-- 탭: 관주 일정 -->
   <div id="tab-schedule" class="tab-content">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-      <button class="zone-btn active" onclick="filterSchedule(this,'전체')">📋 전체 일정</button>
-      <button class="zone-btn" onclick="filterSchedule(this,'집앞')" style="border-color:#6366f1">🏠 집앞3</button>
-      <button class="zone-btn" onclick="filterSchedule(this,'못자리')" style="border-color:#0ea5e9">💧 못자리옆3</button>
-      <button class="zone-btn" onclick="filterSchedule(this,'연수형네앞')" style="border-color:#f59e0b">🌾 연수형네앞20</button>
-      <button class="zone-btn" onclick="filterSchedule(this,'짧은하우스')" style="border-color:#10b981">🏗 짧은하우스6</button>
-      <button class="zone-btn" onclick="filterSchedule(this,'말장')" style="border-color:#e76f51">🌿 말장8</button>
-      <button class="zone-btn" onclick="filterSchedule(this,'말장NEW1')" style="border-color:#d946ef">🆕 말장NEW1</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="zone-btn active" onclick="filterSchedule(this,'전체')">📋 전체 일정</button>
+        <button class="zone-btn" onclick="filterSchedule(this,'집앞')" style="border-color:#6366f1">🏠 집앞3</button>
+        <button class="zone-btn" onclick="filterSchedule(this,'못자리')" style="border-color:#0ea5e9">💧 못자리옆3</button>
+        <button class="zone-btn" onclick="filterSchedule(this,'연수형네앞')" style="border-color:#f59e0b">🌾 연수형네앞20</button>
+        <button class="zone-btn" onclick="filterSchedule(this,'짧은하우스')" style="border-color:#10b981">🏗 짧은하우스6</button>
+        <button class="zone-btn" onclick="filterSchedule(this,'말장')" style="border-color:#e76f51">🌿 말장8</button>
+        <button class="zone-btn" onclick="filterSchedule(this,'말장NEW1')" style="border-color:#d946ef">🆕 말장NEW1</button>
+      </div>
+      <button onclick="openWaterQuickAdd()" style="flex-shrink:0;padding:7px 14px;background:var(--green-mid);color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 빠른입력</button>
     </div>
 
     <!-- 구역별 관주 현황 요약 -->
@@ -1077,7 +1129,7 @@
         <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:16px">작업 종류</label>
         <select id="edit-type" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box;background:white">
           <option>관주</option><option>정식</option><option>순치기</option>
-          <option>소독</option><option>적과</option><option>수확</option><option>기타</option>
+          <option>소독/엽면시비</option><option>적과</option><option>수확</option><option>기타</option>
         </select>
       </div>
 
@@ -1096,8 +1148,8 @@
         <input type="text" id="edit-workers" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box">
       </div>
 
-      <div>
-        <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:16px">구역별 관주 시간</label>
+      <div id="edit-duration-section" style="display:none">
+        <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:6px">⏱ 구역별 관주 시간 (분)</label>
         <div id="edit-zone-durations" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
 
@@ -1120,6 +1172,93 @@
   </div>
 </div>
 
+<!-- 관주 빠른입력 모달 -->
+<div class="modal-overlay" id="water-quick-modal">
+  <div class="modal-box" style="max-width:400px;text-align:left;max-height:90vh;overflow-y:auto">
+    <div style="font-size:1rem;font-weight:700;color:var(--ink);margin-bottom:4px">💧 관주 빠른입력</div>
+    <div style="font-size:0.78rem;color:var(--ink-light);margin-bottom:14px">날짜와 구역을 선택하고 비료를 입력하세요.</div>
+
+    <div style="margin-bottom:12px">
+      <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">📅 날짜</label>
+      <input type="date" id="water-quick-date" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box;-webkit-appearance:none">
+    </div>
+
+    <div style="margin-bottom:12px">
+      <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:6px">📍 구역</label>
+      <div id="water-quick-zones" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">📝 작업내용</label>
+      <input type="text" id="water-quick-work" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box">
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <label style="font-size:0.8rem;color:var(--ink-light)">비료/농약</label>
+        <button onclick="addWaterQuickFert()" style="font-size:0.75rem;color:var(--green-mid);background:none;border:1px dashed var(--green-mid);border-radius:6px;padding:3px 10px;cursor:pointer">+ 추가</button>
+      </div>
+      <div id="water-quick-fert-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+    <div style="margin-bottom:4px">
+      <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">메모</label>
+      <input type="text" id="water-quick-memo" placeholder="선택사항" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box">
+    </div>
+
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="modal-btn-cancel" onclick="closeWaterQuickAdd()">취소</button>
+      <button class="modal-btn-delete" style="background:var(--green-mid)" onclick="saveWaterQuickAdd()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 소독/엽면 빠른입력 모달 -->
+<div class="modal-overlay" id="spray-quick-modal">
+  <div class="modal-box" style="max-width:400px;text-align:left;max-height:90vh;overflow-y:auto">
+    <div style="font-size:1rem;font-weight:700;color:var(--ink);margin-bottom:4px">🧪 소독/엽면 빠른입력</div>
+    <div style="font-size:0.78rem;color:var(--ink-light);margin-bottom:14px">가장 최근 기록을 기반으로 불러왔어요. 수량만 수정하세요.</div>
+
+    <!-- 날짜 -->
+    <div style="margin-bottom:12px">
+      <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">📅 날짜</label>
+      <input type="date" id="spray-quick-date" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box;-webkit-appearance:none">
+    </div>
+
+    <!-- 구역 -->
+    <div style="margin-bottom:12px">
+      <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:6px">📍 구역</label>
+      <div id="spray-quick-zones" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+
+    <!-- 작업내용 -->
+    <div style="margin-bottom:12px">
+      <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">📝 작업내용</label>
+      <input type="text" id="spray-quick-work" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box">
+    </div>
+
+    <!-- 비료/농약 -->
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <label style="font-size:0.8rem;color:var(--ink-light)">비료/농약</label>
+        <button onclick="addSprayQuickFert()" style="font-size:0.75rem;color:var(--green-mid);background:none;border:1px dashed var(--green-mid);border-radius:6px;padding:3px 10px;cursor:pointer">+ 추가</button>
+      </div>
+      <div id="spray-quick-fert-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+    <!-- 메모 -->
+    <div style="margin-bottom:4px">
+      <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">메모</label>
+      <input type="text" id="spray-quick-memo" placeholder="선택사항" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box">
+    </div>
+
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="modal-btn-cancel" onclick="closeSprayQuickAdd()">취소</button>
+      <button class="modal-btn-delete" style="background:var(--green-mid)" onclick="saveSprayQuickAdd()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 구역별 관주 날짜 수정 모달 -->
 <div class="modal-overlay" id="zone-date-edit-modal">
   <div class="modal-box" style="max-width:380px;text-align:left;max-height:90vh;overflow-y:auto">
@@ -1134,6 +1273,14 @@
       <div style="margin-bottom:10px">
         <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">📅 관주 날짜</label>
         <input type="date" id="zone-date-edit-date" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box;-webkit-appearance:none">
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">⏱ 관주 시간</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" id="zone-date-edit-duration" placeholder="0" min="0"
+            style="width:100px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:DM Mono,monospace;font-size:0.9rem">
+          <span style="font-size:0.85rem;color:#888">분</span>
+        </div>
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -1224,12 +1371,13 @@ const state = {
   scheduleFilter: '전체',
   saving: false,
   syncing: false,
+  sprayFolders: [], // [{id, name, logIds:[]}]
 };
 
 // Firebase 클라우드 저장/불러오기
 async function saveToCloud() {
   try {
-    const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {} };
+    const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [] };
     localStorage.setItem('farm_data_2026', JSON.stringify(data));
     if (window.fbSave) await window.fbSave(JSON.stringify(data));
   } catch(e) {
@@ -1251,6 +1399,7 @@ async function loadFromCloud() {
           state.roundDetails = data.roundDetails || {};
           state.roundDates = data.roundDates || {};
           state.zonePlantingDates = data.zonePlantingDates || {};
+          state.sprayFolders = data.sprayFolders || [];
         }
         localStorage.setItem('farm_data_2026', raw);
         return;
@@ -1267,6 +1416,7 @@ async function loadFromCloud() {
         state.roundDetails = data.roundDetails || {};
         state.roundDates = data.roundDates || {};
         state.zonePlantingDates = data.zonePlantingDates || {};
+        state.sprayFolders = data.sprayFolders || [];
       }
     }
   } catch(e) {
@@ -1503,11 +1653,12 @@ async function init() {
   updateSummary();
   updateNextWater();
   renderLogs();
-  renderSprayLogs('전체');
+  renderSprayLogs();
   renderTimeline();
   renderZoneStatus();
   renderCompare();
   renderLastYear();
+  initSprayTouchDrag();
 }
 
 // 날짜 포맷
@@ -1734,6 +1885,7 @@ function addFert() {
         <div class="fert-per-wrap" style="display:flex;gap:4px">
           <button class="per-btn active" onclick="togglePer(this,'동당')">동당</button>
           <button class="per-btn" onclick="togglePer(this,'총량')">총량</button>
+          <button class="per-btn" onclick="togglePer(this,'말')">말</button>
         </div>
       </div>
     </div>`;
@@ -1753,8 +1905,8 @@ function togglePer(btn, per) {
 }
 
 function removeFert(btn) {
-  const items = document.querySelectorAll('.fertilizer-item');
-  if (items.length > 1) btn.parentElement.remove();
+  const items = document.querySelectorAll('#fert-list .fertilizer-item');
+  if (items.length > 1) btn.closest('.fertilizer-item').remove();
 }
 
 // 기록 저장
@@ -1830,6 +1982,7 @@ function saveLog() {
         <div class="fert-per-wrap" style="display:flex;gap:4px">
           <button class="per-btn active" onclick="togglePer(this,'동당')">동당</button>
           <button class="per-btn" onclick="togglePer(this,'총량')">총량</button>
+          <button class="per-btn" onclick="togglePer(this,'말')">말</button>
         </div>
       </div>
     </div>`;
@@ -1844,7 +1997,7 @@ function saveLog() {
   updateSummary();
   updateNextWater();
   renderLogs();
-  renderSprayLogs('전체');
+  renderSprayLogs();
   renderTimeline();
   renderZoneStatus();
 
@@ -1891,6 +2044,9 @@ function renderLogs() {
     return;
   }
 
+  container.innerHTML = filtered.map(log => makeLogItemHTML(log)).join('');
+}
+
 function makeLogItemHTML(log) {
     const fertLine = fertStr(log.ferts);
     const zoneColor = log.zones && log.zones.length > 0 ? ZONE_COLORS[log.zones[0]] : null;
@@ -1921,9 +2077,6 @@ function makeLogItemHTML(log) {
         : log.duration ? `<div class="log-memo">⏱ ${log.duration}분</div>` : ''}
       ${log.memo ? `<div class="log-memo">📝 ${log.memo}</div>` : ''}
     </div>`;
-}
-
-  container.innerHTML = filtered.map(log => makeLogItemHTML(log)).join('');
 }
 
 // 구역별 관주 날짜 수정
@@ -1961,6 +2114,12 @@ function openZoneDateEdit(round, zone, date) {
   const existLog = round > 1 ? (zoneLogs[logIdx] || null) : null;
   initZoneFertList(existLog ? (existLog.ferts || []) : []);
 
+  // 기존 관주 시간 불러오기
+  const prevDuration = existLog
+    ? ((existLog.zoneDurations && existLog.zoneDurations[zone]) || existLog.duration || '')
+    : '';
+  document.getElementById('zone-date-edit-duration').value = prevDuration;
+
   document.getElementById('zone-date-edit-modal').classList.add('show');
 }
 
@@ -1980,8 +2139,8 @@ function addZoneFert(f) {
   const options = CATS.map(c => `<option ${f && c===f.category?'selected':''}>${c}</option>`).join('');
   const unitBtns = ['g','kg','ml','L'].map(u =>
     `<button class="unit-btn ${f && (f.unit||'').startsWith(u)?'active':''}" onclick="toggleUnit(this,'${u}')">${u}</button>`).join('');
-  const perBtns = ['동당','총량'].map(p =>
-    `<button class="per-btn ${f && (f.unit||'').includes(p)?'active':''}" onclick="togglePer(this,'${p}')">${p}</button>`).join('');
+  const perBtns = ['동당','총량','말'].map(p =>
+    `<button class="per-btn ${f && (f.unit||'')===(p)?'active':''}" onclick="togglePer(this,'${p}')">${p}</button>`).join('');
   const div = document.createElement('div');
   div.className = 'fertilizer-item';
   div.style.cssText = 'background:var(--paper);border:1px solid var(--border);border-radius:8px;padding:8px;';
@@ -2030,6 +2189,8 @@ function saveZoneDateEdit() {
   const date = document.getElementById('zone-date-edit-date').value;
   if (!date) { closeZoneDateEdit(); return; }
 
+  const duration = document.getElementById('zone-date-edit-duration').value.trim();
+
   // zone-fert-list에서 비료 수집
   const ferts = [];
   document.querySelectorAll('#zone-fert-list .fertilizer-item').forEach(item => {
@@ -2056,20 +2217,28 @@ function saveZoneDateEdit() {
       if (targetLog.zones.length === 1) {
         targetLog.date = date;
         if (ferts.length > 0) targetLog.ferts = ferts;
+        if (duration) {
+          if (!targetLog.zoneDurations) targetLog.zoneDurations = {};
+          targetLog.zoneDurations[zone] = duration;
+        }
       } else {
         targetLog.zones = targetLog.zones.filter(z => z !== zone);
+        const zd = {};
+        if (duration) zd[zone] = duration;
         state.logs.push({
           id: Date.now(), date, type: '관주', zones: [zone],
           work: targetLog.work || `${round}차 관주`,
-          workers: targetLog.workers || '', zoneDurations: {},
+          workers: targetLog.workers || '', zoneDurations: zd,
           ferts: ferts.length > 0 ? ferts : JSON.parse(JSON.stringify(targetLog.ferts || [])),
           memo: targetLog.memo || ''
         });
       }
     } else {
+      const zd = {};
+      if (duration) zd[zone] = duration;
       state.logs.push({
         id: Date.now(), date, type: '관주', zones: [zone],
-        work: `${round}차 관주`, workers: '', zoneDurations: {}, ferts, memo: ''
+        work: `${round}차 관주`, workers: '', zoneDurations: zd, ferts, memo: ''
       });
     }
     state.logs.sort((a, b) => a.date.localeCompare(b.date));
@@ -2089,6 +2258,8 @@ function toggleRoundDetail(round) {
   const isOpen = el.style.display !== 'none';
   el.style.display = isOpen ? 'none' : 'block';
   if (arrow) arrow.textContent = isOpen ? '▼' : '▲';
+  if (isOpen) openRoundSet.delete(String(round));
+  else openRoundSet.add(String(round));
 }
 
 function openRoundEdit(round) {
@@ -2129,8 +2300,8 @@ function renderRoundEditFerts(ferts) {
     const options = CATS.map(c => `<option ${c===(f.category||'')?'selected':''}>${c}</option>`).join('');
     const unitBtns = ['g','kg','ml','L'].map(u =>
       `<button class="unit-btn ${(f.unit||'').startsWith(u)?'active':''}" onclick="toggleUnit(this,'${u}')">${u}</button>`).join('');
-    const perBtns = ['동당','총량'].map(p =>
-      `<button class="per-btn ${(f.unit||'').includes(p)?'active':''}" onclick="togglePer(this,'${p}')">${p}</button>`).join('');
+    const perBtns = ['동당','총량','말'].map(p =>
+      `<button class="per-btn ${(f.unit||'')===(p)?'active':''}" onclick="togglePer(this,'${p}')">${p}</button>`).join('');
     return `<div class="fertilizer-item" style="background:var(--paper);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px">
       <div class="fert-row1" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
         <input type="text" value="${f.name||''}" class="fert-name" style="flex:1;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:Noto Serif KR,serif;font-size:0.85rem">
@@ -2182,32 +2353,431 @@ function saveRoundEdit() {
 }
 
 // NEXT WATERING 수정
-function renderSprayLogs(zone) {
-  const container = document.getElementById('spray-list');
-  if (!container) return;
-  const sprayLogs = state.logs.filter(l => l.type === '소독/엽면시비' || l.type === '소독' || l.type === '엽면시비');
+function renderSprayLogs() {
+  const sprayLogs = state.logs
+    .filter(l => l.type === '소독/엽면시비' || l.type === '소독' || l.type === '엽면시비')
+    .sort((a,b) => b.date.localeCompare(a.date));
 
-  // 카운트 업데이트
-  const cntEl = document.getElementById('spray-cnt-전체');
-  if (cntEl) {
-    cntEl.textContent = sprayLogs.length;
-    ZONES.forEach(z => {
-      const el = document.getElementById('spray-cnt-' + z);
-      if (el) el.textContent = sprayLogs.filter(l => l.zones && l.zones.includes(z)).length;
-    });
-  }
+  // 폴더에 속한 logId 집합
+  const assignedIds = new Set((state.sprayFolders||[]).flatMap(f => f.logIds||[]));
+  // 미분류
+  const unassigned = sprayLogs.filter(l => !assignedIds.has(l.id));
 
-  let filtered = [...sprayLogs];
-  if (zone && zone !== '전체') {
-    filtered = filtered.filter(l => l.zones && l.zones.includes(zone));
-  }
-  filtered.reverse();
+  // 폴더 렌더
+  const foldersEl = document.getElementById('spray-folders');
+  if (!foldersEl) return;
+  foldersEl.innerHTML = '';
+  (state.sprayFolders||[]).forEach(folder => {
+    const folderLogs = (folder.logIds||[])
+      .map(id => sprayLogs.find(l => l.id === id))
+      .filter(Boolean);
+    const div = document.createElement('div');
+    div.className = 'spray-folder';
+    div.innerHTML = `
+      <div class="spray-folder-header" onclick="toggleSprayFolder(event,'${folder.id}')">
+        <span id="folder-toggle-${folder.id}" style="font-size:0.8rem;color:#aaa">▼</span>
+        <input class="spray-folder-title" value="${folder.name}"
+          onclick="event.stopPropagation()"
+          onchange="renameSprayFolder('${folder.id}',this.value)"
+          style="cursor:text">
+        <span style="font-size:0.75rem;color:#aaa;margin-right:6px">${folderLogs.length}건</span>
+        <button onclick="event.stopPropagation();deleteSprayFolder('${folder.id}')"
+          style="border:none;background:none;color:#e57373;cursor:pointer;font-size:0.85rem;padding:2px 4px">🗑</button>
+      </div>
+      <div class="spray-folder-drop" id="folder-drop-${folder.id}"
+        ondragover="onFolderDragOver(event,'${folder.id}')"
+        ondragleave="onFolderDragLeave(event,'${folder.id}')"
+        ondrop="onFolderDrop(event,'${folder.id}')">
+        ${folderLogs.length === 0
+          ? `<div class="spray-folder-empty">여기로 기록을 끌어다 놓으세요</div>`
+          : folderLogs.map(log => makeSprayDraggableItem(log, folder.id)).join('')}
+      </div>`;
+    foldersEl.appendChild(div);
+    // 터치 드롭존 등록
+    setupTouchDropZone(div.querySelector('.spray-folder-drop'), folder.id);
+  });
 
-  if (filtered.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="icon">🧪</div><p>소독/엽면시비 기록이 없어요.</p></div>`;
+  // 미분류 렌더
+  const unassignedEl = document.getElementById('spray-unassigned');
+  if (sprayLogs.length === 0) {
+    unassignedEl.innerHTML = `<div class="empty-state"><div class="icon">🧪</div><p>소독/엽면시비 기록이 없어요.<br>기록 입력 또는 빠른입력으로 기록하세요!</p></div>`;
     return;
   }
-  container.innerHTML = filtered.map(log => makeLogItemHTML(log)).join('');
+  unassignedEl.innerHTML = unassigned.length === 0 ? '' : `
+    <div class="spray-unassigned-header">📋 미분류 기록 (${unassigned.length}건) — 폴더로 끌어서 분류하세요</div>
+    <div id="unassigned-drop" style="display:flex;flex-direction:column;gap:6px"
+      ondragover="event.preventDefault()"
+      ondrop="onUnassignedDrop(event)">
+      ${unassigned.map(log => makeSprayDraggableItem(log, null)).join('')}
+    </div>`;
+  // 미분류 터치 드롭존
+  const udrop = unassignedEl.querySelector('#unassigned-drop');
+  if (udrop) setupTouchDropZone(udrop, null);
+}
+
+function makeSprayDraggableItem(log, folderId) {
+  const html = makeLogItemHTML(log);
+  // log-item div에 draggable 속성과 이벤트 삽입
+  return html.replace(
+    `<div class="log-item`,
+    `<div draggable="true"
+      data-log-id="${log.id}"
+      data-folder-id="${folderId||''}"
+      onmousedown="sprayDragItem=null"
+      ondragstart="onSprayDragStart(event,${log.id},'${folderId||''}')"
+      ondragend="onSprayDragEnd(event)"
+      class="log-item`
+  );
+}
+
+// ── PC 드래그 ──
+let _dragLogId = null, _dragFromFolder = null;
+
+function onSprayDragStart(e, logId, fromFolder) {
+  _dragLogId = logId;
+  _dragFromFolder = fromFolder || null;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('dragging');
+}
+function onSprayDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+}
+function onFolderDragOver(e, folderId) {
+  e.preventDefault();
+  document.getElementById('folder-drop-'+folderId).classList.add('drag-over');
+}
+function onFolderDragLeave(e, folderId) {
+  document.getElementById('folder-drop-'+folderId).classList.remove('drag-over');
+}
+function onFolderDrop(e, folderId) {
+  e.preventDefault();
+  document.getElementById('folder-drop-'+folderId).classList.remove('drag-over');
+  if (_dragLogId == null) return;
+  moveLogToFolder(_dragLogId, _dragFromFolder, folderId);
+  _dragLogId = null;
+}
+function onUnassignedDrop(e) {
+  e.preventDefault();
+  if (_dragLogId == null) return;
+  moveLogToFolder(_dragLogId, _dragFromFolder, null);
+  _dragLogId = null;
+}
+
+function moveLogToFolder(logId, fromFolderId, toFolderId) {
+  logId = Number(logId);
+  // 기존 폴더에서 제거
+  if (fromFolderId) {
+    const f = state.sprayFolders.find(f => f.id === fromFolderId);
+    if (f) f.logIds = f.logIds.filter(id => id !== logId);
+  }
+  // 새 폴더에 추가
+  if (toFolderId) {
+    const f = state.sprayFolders.find(f => f.id === toFolderId);
+    if (f && !f.logIds.includes(logId)) f.logIds.push(logId);
+  }
+  saveToCloud();
+  renderSprayLogs();
+}
+
+// ── 터치 드래그 (모바일) ──
+let _touchLogId = null, _touchFromFolder = null, _touchGhost = null;
+
+function setupTouchDropZone(el, folderId) { el._folderId = folderId; }
+
+function initSprayTouchDrag() {
+  document.addEventListener('touchstart', e => {
+    const item = e.target.closest('[data-log-id][draggable]');
+    if (!item) return;
+    _touchLogId = Number(item.dataset.logId);
+    _touchFromFolder = item.dataset.folderId || null;
+    // 고스트 생성
+    _touchGhost = item.cloneNode(true);
+    _touchGhost.style.cssText = `position:fixed;opacity:0.7;pointer-events:none;z-index:9999;width:${item.offsetWidth}px;top:0;left:0;transform:scale(0.95);`;
+    document.body.appendChild(_touchGhost);
+    item.classList.add('dragging');
+  }, {passive: true});
+
+  document.addEventListener('touchmove', e => {
+    if (!_touchLogId) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    if (_touchGhost) {
+      _touchGhost.style.top = (t.clientY - 30) + 'px';
+      _touchGhost.style.left = (t.clientX - 60) + 'px';
+    }
+    // 드롭존 하이라이트
+    document.querySelectorAll('.spray-folder-drop, #unassigned-drop').forEach(z => z.classList.remove('drag-over'));
+    const el = document.elementFromPoint(t.clientX, t.clientY);
+    const zone = el && el.closest('.spray-folder-drop, #unassigned-drop');
+    if (zone) zone.classList.add('drag-over');
+  }, {passive: false});
+
+  document.addEventListener('touchend', e => {
+    if (!_touchLogId) return;
+    const t = e.changedTouches[0];
+    if (_touchGhost) { _touchGhost.remove(); _touchGhost = null; }
+    document.querySelectorAll('.spray-folder-drop, #unassigned-drop').forEach(z => z.classList.remove('drag-over'));
+    document.querySelectorAll('[data-log-id].dragging').forEach(el => el.classList.remove('dragging'));
+    const el = document.elementFromPoint(t.clientX, t.clientY);
+    const zone = el && el.closest('.spray-folder-drop, #unassigned-drop');
+    if (zone) {
+      const toFolder = zone._folderId !== undefined ? zone._folderId : (zone.id === 'unassigned-drop' ? null : null);
+      moveLogToFolder(_touchLogId, _touchFromFolder, toFolder);
+    }
+    _touchLogId = null;
+  }, {passive: true});
+}
+
+// ── 폴더 관리 ──
+function addSprayFolder() {
+  const name = `${(state.sprayFolders||[]).length + 1}차 소독`;
+  if (!state.sprayFolders) state.sprayFolders = [];
+  state.sprayFolders.push({ id: 'f' + Date.now(), name, logIds: [] });
+  saveToCloud();
+  renderSprayLogs();
+}
+
+function renameSprayFolder(folderId, newName) {
+  const f = state.sprayFolders.find(f => f.id === folderId);
+  if (f) { f.name = newName; saveToCloud(); }
+}
+
+function deleteSprayFolder(folderId) {
+  if (!confirm('폴더를 삭제할까요? 안에 있는 기록은 미분류로 돌아가요.')) return;
+  state.sprayFolders = state.sprayFolders.filter(f => f.id !== folderId);
+  saveToCloud();
+  renderSprayLogs();
+}
+
+function toggleSprayFolder(e, folderId) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+  const drop = document.getElementById('folder-drop-'+folderId);
+  const toggle = document.getElementById('folder-toggle-'+folderId);
+  if (!drop) return;
+  const hidden = drop.style.display === 'none';
+  drop.style.display = hidden ? '' : 'none';
+  toggle.textContent = hidden ? '▼' : '▶';
+}
+
+// 소독/엽면 빠른입력
+function openWaterQuickAdd() {
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('water-quick-date').value = today;
+
+  // 최근 관주 로그
+  const waterLogs = state.logs
+    .filter(l => l.type === '관주')
+    .sort((a,b) => b.date.localeCompare(a.date));
+  const last = waterLogs[0] || null;
+
+  // 구역 버튼 - 기본 전체 선택
+  const zonesEl = document.getElementById('water-quick-zones');
+  const selectedZones = last ? [...(last.zones||[])] : [...ZONES];
+  zonesEl.innerHTML = ZONES.map(z => {
+    const active = selectedZones.includes(z);
+    return `<button onclick="toggleWaterZone(this,'${z}')" data-zone="${z}"
+      style="padding:5px 10px;border-radius:8px;border:1.5px solid ${ZONE_COLORS[z]};font-size:0.78rem;cursor:pointer;
+      background:${active ? ZONE_COLORS[z] : 'white'};color:${active ? 'white' : ZONE_COLORS[z]};font-family:Noto Serif KR,serif">
+      ${ZONE_LABELS[z]}</button>`;
+  }).join('');
+
+  document.getElementById('water-quick-work').value = last ? (last.work||'관주') : '관주';
+  document.getElementById('water-quick-memo').value = last ? (last.memo||'') : '';
+
+  const fertList = document.getElementById('water-quick-fert-list');
+  fertList.innerHTML = '';
+  const ferts = last && last.ferts ? last.ferts : [];
+  if (ferts.length === 0) { addWaterQuickFert(); }
+  else { ferts.forEach(f => addWaterQuickFert(f)); }
+
+  document.getElementById('water-quick-modal').classList.add('show');
+}
+
+function toggleWaterZone(btn, zone) {
+  const isActive = btn.style.background !== 'white' && btn.style.background !== '';
+  btn.style.background = isActive ? 'white' : ZONE_COLORS[zone];
+  btn.style.color = isActive ? ZONE_COLORS[zone] : 'white';
+}
+
+function addWaterQuickFert(f) {
+  const CATS = ['비료','뿌리/부식산','아미노산','미생물','칼슘/마그네슘/붕산/미량요소','살균제','살충제','비대제','기타'];
+  const options = CATS.map(c => `<option ${f && c===f.category?'selected':''}>${c}</option>`).join('');
+  const unitBtns = ['g','kg','ml','L'].map(u =>
+    `<button class="unit-btn ${f && (f.unit||'').startsWith(u)?'active':u==='g'&&!f?'active':''}" onclick="toggleUnit(this,'${u}')">${u}</button>`).join('');
+  const perBtns = ['동당','총량','말'].map(p =>
+    `<button class="per-btn ${f && (f.unit||'').split('/')[1]===p?'active':p==='동당'&&!f?'active':''}" onclick="togglePer(this,'${p}')">${p}</button>`).join('');
+  const div = document.createElement('div');
+  div.className = 'fertilizer-item';
+  div.style.cssText = 'background:var(--paper);border:1px solid var(--border);border-radius:8px;padding:8px;';
+  div.innerHTML = `
+    <div class="fert-row1" style="margin-bottom:6px">
+      <input type="text" value="${f?f.name||'':''}" placeholder="제품명" class="fert-name" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Noto Serif KR,serif;font-size:0.85rem">
+      <select class="fert-category" style="padding:7px 5px;border:1.5px solid var(--border);border-radius:7px;font-family:Noto Serif KR,serif;font-size:0.78rem;max-width:100px">${options}</select>
+      <button onclick="this.closest('.fertilizer-item').remove()" style="padding:4px 8px;border:1px solid #eee;border-radius:6px;background:none;color:#ccc;cursor:pointer;font-size:1rem">×</button>
+    </div>
+    <div class="fert-row2">
+      <input type="number" value="${f?f.amount||'':''}" placeholder="0" class="fert-amount" style="width:64px;padding:7px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:0.85rem;font-family:DM Mono,monospace">
+      <div class="fert-unit-wrap" style="display:flex;gap:3px">${unitBtns}</div>
+      <div class="fert-divider"></div>
+      <div class="fert-per-wrap" style="display:flex;gap:3px">${perBtns}</div>
+    </div>`;
+  document.getElementById('water-quick-fert-list').appendChild(div);
+}
+
+function closeWaterQuickAdd() {
+  document.getElementById('water-quick-modal').classList.remove('show');
+}
+
+function saveWaterQuickAdd() {
+  const date = document.getElementById('water-quick-date').value;
+  if (!date) return;
+
+  const zones = [...document.querySelectorAll('#water-quick-zones button')]
+    .filter(b => b.style.background !== 'white' && b.style.background !== '')
+    .map(b => b.dataset.zone);
+  if (zones.length === 0) { alert('구역을 하나 이상 선택해주세요.'); return; }
+
+  const work = document.getElementById('water-quick-work').value.trim() || '관주';
+  const memo = document.getElementById('water-quick-memo').value.trim();
+
+  const ferts = [];
+  document.querySelectorAll('#water-quick-fert-list .fertilizer-item').forEach(item => {
+    const name = item.querySelector('.fert-name').value.trim();
+    const amount = item.querySelector('.fert-amount').value.trim();
+    const activeUnit = item.querySelector('.unit-btn.active');
+    const activePer = item.querySelector('.per-btn.active');
+    const unit = (activeUnit ? activeUnit.textContent : '') + (activePer ? '/'+activePer.textContent : '');
+    const category = item.querySelector('.fert-category') ? item.querySelector('.fert-category').value : '';
+    if (name) ferts.push({ name, amount, unit, category });
+  });
+
+  state.logs.push({
+    id: Date.now(), date, type: '관주',
+    zones, work, workers: '', zoneDurations: {}, ferts, memo
+  });
+  state.logs.sort((a,b) => a.date.localeCompare(b.date));
+
+  saveToCloud();
+  closeWaterQuickAdd();
+  renderTimeline();
+  renderZoneStatus();
+  renderLogs();
+}
+
+function openSprayQuickAdd() {
+  // 오늘 날짜
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('spray-quick-date').value = today;
+
+  // 최근 소독/엽면 로그 찾기
+  const sprayLogs = state.logs
+    .filter(l => l.type === '소독/엽면시비' || l.type === '소독' || l.type === '엽면시비')
+    .sort((a,b) => b.date.localeCompare(a.date));
+  const last = sprayLogs[0] || null;
+
+  // 구역 버튼
+  const zonesEl = document.getElementById('spray-quick-zones');
+  const selectedZones = last ? [...(last.zones||[])] : [...ZONES];
+  zonesEl.innerHTML = ZONES.map(z => {
+    const active = selectedZones.includes(z);
+    return `<button onclick="toggleSprayZone(this,'${z}')" data-zone="${z}"
+      style="padding:5px 10px;border-radius:8px;border:1.5px solid ${ZONE_COLORS[z]};font-size:0.78rem;cursor:pointer;
+      background:${active ? ZONE_COLORS[z] : 'white'};color:${active ? 'white' : ZONE_COLORS[z]};font-family:Noto Serif KR,serif">
+      ${ZONE_LABELS[z]}</button>`;
+  }).join('');
+
+  // 작업내용
+  document.getElementById('spray-quick-work').value = last ? (last.work||'') : '';
+  // 메모
+  document.getElementById('spray-quick-memo').value = last ? (last.memo||'') : '';
+
+  // 비료 목록 - 수량 입력칸만 편집 가능하게
+  const fertList = document.getElementById('spray-quick-fert-list');
+  fertList.innerHTML = '';
+  const ferts = last && last.ferts ? last.ferts : [];
+  if (ferts.length === 0) {
+    addSprayQuickFert();
+  } else {
+    ferts.forEach(f => addSprayQuickFert(f));
+  }
+
+  document.getElementById('spray-quick-modal').classList.add('show');
+}
+
+function toggleSprayZone(btn, zone) {
+  const active = btn.style.background !== 'white' && btn.style.background !== '';
+  if (active) {
+    btn.style.background = 'white';
+    btn.style.color = ZONE_COLORS[zone];
+  } else {
+    btn.style.background = ZONE_COLORS[zone];
+    btn.style.color = 'white';
+  }
+}
+
+function addSprayQuickFert(f) {
+  const CATS = ['비료','뿌리/부식산','아미노산','미생물','칼슘/마그네슘/붕산/미량요소','살균제','살충제','비대제','기타'];
+  const options = CATS.map(c => `<option ${f && c===f.category?'selected':''}>${c}</option>`).join('');
+  const unitBtns = ['g','kg','ml','L'].map(u =>
+    `<button class="unit-btn ${f && (f.unit||'').startsWith(u)?'active':u==='g'&&!f?'active':''}" onclick="toggleUnit(this,'${u}')">${u}</button>`).join('');
+  const perBtns = ['동당','총량','말'].map(p =>
+    `<button class="per-btn ${f && (f.unit||'')===(p)?'active':p==='동당'&&!f?'active':''}" onclick="togglePer(this,'${p}')">${p}</button>`).join('');
+  const div = document.createElement('div');
+  div.className = 'fertilizer-item';
+  div.style.cssText = 'background:var(--paper);border:1px solid var(--border);border-radius:8px;padding:8px;';
+  div.innerHTML = `
+    <div class="fert-row1" style="margin-bottom:6px">
+      <input type="text" value="${f?f.name||'':''}" placeholder="제품명" class="fert-name" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Noto Serif KR,serif;font-size:0.85rem">
+      <select class="fert-category" style="padding:7px 5px;border:1.5px solid var(--border);border-radius:7px;font-family:Noto Serif KR,serif;font-size:0.78rem;max-width:100px">${options}</select>
+      <button onclick="this.closest('.fertilizer-item').remove()" style="padding:4px 8px;border:1px solid #eee;border-radius:6px;background:none;color:#ccc;cursor:pointer;font-size:1rem">×</button>
+    </div>
+    <div class="fert-row2">
+      <input type="number" value="${f?f.amount||'':''}" placeholder="0" class="fert-amount" style="width:64px;padding:7px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:0.85rem;font-family:DM Mono,monospace">
+      <div class="fert-unit-wrap" style="display:flex;gap:3px">${unitBtns}</div>
+      <div class="fert-divider"></div>
+      <div class="fert-per-wrap" style="display:flex;gap:3px">${perBtns}</div>
+    </div>`;
+  document.getElementById('spray-quick-fert-list').appendChild(div);
+}
+
+function closeSprayQuickAdd() {
+  document.getElementById('spray-quick-modal').classList.remove('show');
+}
+
+function saveSprayQuickAdd() {
+  const date = document.getElementById('spray-quick-date').value;
+  if (!date) return;
+
+  const zones = [...document.querySelectorAll('#spray-quick-zones button')]
+    .filter(b => b.style.background !== 'white' && b.style.background !== '')
+    .map(b => b.dataset.zone);
+  if (zones.length === 0) { alert('구역을 하나 이상 선택해주세요.'); return; }
+
+  const work = document.getElementById('spray-quick-work').value.trim();
+  const memo = document.getElementById('spray-quick-memo').value.trim();
+
+  const ferts = [];
+  document.querySelectorAll('#spray-quick-fert-list .fertilizer-item').forEach(item => {
+    const name = item.querySelector('.fert-name').value.trim();
+    const amount = item.querySelector('.fert-amount').value.trim();
+    const activeUnit = item.querySelector('.unit-btn.active');
+    const activePer = item.querySelector('.per-btn.active');
+    const unit = (activeUnit ? activeUnit.textContent : '') + (activePer ? '/'+activePer.textContent : '');
+    const category = item.querySelector('.fert-category') ? item.querySelector('.fert-category').value : '';
+    if (name) ferts.push({ name, amount, unit, category });
+  });
+
+  state.logs.push({
+    id: Date.now(), date, type: '소독/엽면시비',
+    zones, work: work || '소독/엽면시비', workers: '',
+    zoneDurations: {}, ferts, memo
+  });
+  state.logs.sort((a,b) => a.date.localeCompare(b.date));
+
+  saveToCloud();
+  closeSprayQuickAdd();
+  renderSprayLogs();
+  renderLogs();
 }
 
 function filterSpray(el, zone) {
@@ -2246,6 +2816,7 @@ function saveNextWaterEdit() {
 // 로그 수정 - 모달 방식
 let pendingEditId = null;
 let editSelectedZones = [];
+const openRoundSet = new Set(); // 열려있는 차수 영구 관리
 
 function editLog(id) {
   pendingEditId = id;
@@ -2258,9 +2829,18 @@ function editLog(id) {
   document.getElementById('edit-workers').value = log.workers || '';
   document.getElementById('edit-memo').value = log.memo || '';
 
-  // 구역 선택
+  // 구역 먼저 설정
   editSelectedZones = [...(log.zones || [])];
-  renderEditZones();
+  renderEditZones(); // 내부에서 renderEditZoneDurations 호출됨
+
+  // 관주일 때만 시간 섹션 표시
+  const updateDurationVisible = () => {
+    const t = document.getElementById('edit-type').value;
+    document.getElementById('edit-duration-section').style.display =
+      (t === '관주') ? '' : 'none';
+  };
+  document.getElementById('edit-type').onchange = updateDurationVisible;
+  updateDurationVisible();
 
   // 비료 목록
   renderEditFerts(log.ferts || []);
@@ -2311,7 +2891,7 @@ function renderEditFerts(ferts) {
   container.innerHTML = ferts.map((f, i) => {
     const options = ['비료', '뿌리/부식산', '아미노산', '미생물', '칼슘/마그네슘/붕산/미량요소', '살균제', '살충제', '비대제', '기타'].map(c => `<option ${c === (f.category||'') ? 'selected' : ''}>${c}</option>`).join('');
     const unitBtns = ['g','kg','ml','L'].map(u => `<button class="unit-btn ${(f.unit||'').startsWith(u) ? 'active' : ''}" onclick="toggleUnit(this,'${u}')">${u}</button>`).join('');
-    const perBtns = ['동당','총량'].map(p => `<button class="per-btn ${(f.unit||'').includes(p) ? 'active' : ''}" onclick="togglePer(this,'${p}')">${p}</button>`).join('');
+    const perBtns = ['동당','총량','말'].map(p => `<button class="per-btn ${(f.unit||'').includes(p) ? 'active' : ''}" onclick="togglePer(this,'${p}')">${p}</button>`).join('');
     return `
     <div class="fertilizer-item">
       <div class="fert-row1">
@@ -2351,6 +2931,7 @@ function addEditFert() {
         <div class="fert-per-wrap" style="display:flex;gap:4px">
           <button class="per-btn active" onclick="togglePer(this,'동당')">동당</button>
           <button class="per-btn" onclick="togglePer(this,'총량')">총량</button>
+          <button class="per-btn" onclick="togglePer(this,'말')">말</button>
         </div>
       </div>
     </div>`;
@@ -2585,19 +3166,26 @@ function renderTimeline() {
       })
       .map(({ zone, color, label, displayDate, isActualDate, log }) => {
         const fLine = fertStr(log ? log.ferts : null);
+        const workLine = log && log.work ? log.work : '';
+        const memoLine = log && log.memo ? log.memo : '';
+        const duration = log && log.zoneDurations && log.zoneDurations[zone]
+          ? log.zoneDurations[zone] + '분'
+          : (log && log.duration ? log.duration + '분' : '');
         if (isActualDate && displayDate) {
           return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
-              <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="openZoneDateEdit(${s.round},'${zone}','${displayDate}')">✓ ${fmtDate(displayDate)}</span>
+              <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','${displayDate}')">✓ ${fmtDate(displayDate)}</span>
             </div>
-            ${fLine ? `<div style="font-size:0.7rem;color:#555;margin-top:3px;padding-left:2px;line-height:1.7">${fLine}</div>` : ''}
+            ${workLine ? `<div style="font-size:0.7rem;color:#888;margin-top:2px;padding-left:2px">📝 ${workLine}${duration ? ' · ⏱ '+duration : ''}</div>` : (duration ? `<div style="font-size:0.7rem;color:#888;margin-top:2px;padding-left:2px">⏱ ${duration}</div>` : '')}
+            ${fLine ? `<div style="font-size:0.7rem;color:#555;margin-top:2px;padding-left:2px;line-height:1.7">${fLine}</div>` : ''}
+            ${memoLine ? `<div style="font-size:0.7rem;color:#aaa;margin-top:2px;padding-left:2px">💬 ${memoLine}</div>` : ''}
           </div>`;
         } else {
           return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
-              <span style="font-size:0.78rem;color:#ccc;cursor:pointer" onclick="openZoneDateEdit(${s.round},'${zone}','')">+ 날짜입력</span>
+              <span style="font-size:0.78rem;color:#ccc;cursor:pointer" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','')">+ 날짜입력</span>
             </div>
           </div>`;
         }
@@ -2633,6 +3221,15 @@ function renderTimeline() {
       </div>
     </div>`;
   }).join('');
+
+  // 열려있던 차수 복원
+  openRoundSet.forEach(round => {
+    const el = document.getElementById('round-zones-' + round);
+    const arrow = document.getElementById('round-toggle-' + round);
+    if (el) el.style.display = 'block';
+    if (arrow) arrow.textContent = '▲';
+  });
+
   renderZoneStatus();
 }
 
@@ -2675,7 +3272,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   event.target.closest('.tab-btn').classList.add('active');
-  if (tab === 'spray') renderSprayLogs('전체');
+  if (tab === 'spray') renderSprayLogs();
 }
 
 // 점 세개 메뉴 토글
@@ -2721,6 +3318,8 @@ document.addEventListener('click', function(e) {
   if (e.target.id === 'next-water-edit-modal') closeNextWaterEdit();
   if (e.target.id === 'round-edit-modal') closeRoundEdit();
   if (e.target.id === 'zone-date-edit-modal') closeZoneDateEdit();
+  if (e.target.id === 'spray-quick-modal') closeSprayQuickAdd();
+  if (e.target.id === 'water-quick-modal') closeWaterQuickAdd();
 });
 
 </script>
