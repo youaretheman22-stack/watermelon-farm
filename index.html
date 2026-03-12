@@ -2417,13 +2417,10 @@ function renderSprayLogs() {
 
 function makeSprayDraggableItem(log, folderId) {
   const html = makeLogItemHTML(log);
-  // log-item div에 draggable 속성과 이벤트 삽입
   return html.replace(
     `<div class="log-item`,
-    `<div draggable="true"
-      data-log-id="${log.id}"
+    `<div data-log-id="${log.id}"
       data-folder-id="${folderId||''}"
-      onmousedown="sprayDragItem=null"
       ondragstart="onSprayDragStart(event,${log.id},'${folderId||''}')"
       ondragend="onSprayDragEnd(event)"
       class="log-item`
@@ -2490,7 +2487,7 @@ function initSprayTouchDrag() {
     // 메뉴/버튼 터치 시 완전 무시
     if (e.target.closest('.log-menu-btn, .log-menu-dropdown, .log-menu-item, .log-menu-wrap, [data-edit-id], [data-delete-id]')) return;
 
-    const item = e.target.closest('[data-log-id][draggable]');
+    const item = e.target.closest('[data-log-id]');
     if (!item) return;
 
     _touchItem = item;
