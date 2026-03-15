@@ -2421,9 +2421,11 @@ function renderSprayLogs() {
 
 function makeSprayDraggableItem(log, folderId) {
   const html = makeLogItemHTML(log);
+  const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   return html.replace(
     `<div class="log-item`,
-    `<div data-log-id="${log.id}"
+    `<div ${isMobile ? '' : 'draggable="true"'}
+      data-log-id="${log.id}"
       data-folder-id="${folderId||''}"
       ondragstart="onSprayDragStart(event,${log.id},'${folderId||''}')"
       ondragend="onSprayDragEnd(event)"
