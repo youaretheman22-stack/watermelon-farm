@@ -453,7 +453,6 @@
     user-select: none;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
-    -webkit-user-drag: none;
   }
 
   .log-item:hover { background: #fafafa; }
@@ -2058,7 +2057,7 @@ function makeLogItemHTML(log) {
       ? log.zones.map(z => `<span style="display:inline-block;font-size:0.68rem;padding:1px 7px;border-radius:10px;background:${ZONE_COLORS[z]}22;color:${ZONE_COLORS[z]};margin-right:4px;font-family:monospace">${ZONE_LABELS[z]||z}</span>`).join('')
       : '';
     const tc = TYPE_COLORS[log.type] || TYPE_COLORS['기타'];
-    return `<div class="log-item type-${log.type}" style="background:${tc.bg};border:1.5px solid ${tc.border}" data-log-id="${log.id}">
+    return `<div class="log-item type-${log.type}" style="background:${tc.bg};border:1.5px solid ${tc.border}" data-log-id="${log.id}" data-folder-id="" draggable="true" ondragstart="onSprayDragStart(event,${log.id},'')" ondragend="onSprayDragEnd(event)">
       <div class="log-header">
         <div class="log-date">${fmtDate(log.date)}</div>
         <div style="display:flex;align-items:center;gap:6px">
@@ -2421,16 +2420,10 @@ function renderSprayLogs() {
 
 function makeSprayDraggableItem(log, folderId) {
   const html = makeLogItemHTML(log);
-  const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-  return html.replace(
-    `<div class="log-item`,
-    `<div ${isMobile ? '' : 'draggable="true"'}
-      data-log-id="${log.id}"
-      data-folder-id="${folderId||''}"
-      ondragstart="onSprayDragStart(event,${log.id},'${folderId||''}')"
-      ondragend="onSprayDragEnd(event)"
-      class="log-item`
-  );
+  // folder-id와 dragstart 폴더 파라미터만 교체
+  return html
+    .replace(`data-folder-id=""`, `data-folder-id="${folderId||''}"`)
+    .replace(`onSprayDragStart(event,${log.id},'')`, `onSprayDragStart(event,${log.id},'${folderId||''}')`);
 }
 
 // ── PC 드래그 ──
@@ -2440,6 +2433,10 @@ function onSprayDragStart(e, logId, fromFolder) {
   _dragLogId = logId;
   _dragFromFolder = fromFolder || null;
   e.dataTransfer.effectAllowed = 'move';
+  // 모바일에서 기본 드래그 잔상 제거
+  const blank = document.createElement('canvas');
+  blank.width = 1; blank.height = 1;
+  e.dataTransfer.setDragImage(blank, 0, 0);
   e.currentTarget.classList.add('dragging');
 }
 function onSprayDragEnd(e) {
