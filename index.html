@@ -2518,9 +2518,11 @@ function initSprayTouchDrag() {
   }, {passive: true});
 
   document.addEventListener('touchmove', e => {
-    // 롱프레스 중 움직이면 타이머 취소
-    if (_touchTimer && !_touchLogId) { clearTimeout(_touchTimer); _touchTimer = null; return; }
-    if (!_touchLogId) return;
+    // 드래그 중이 아니면 스크롤 허용
+    if (!_touchLogId) {
+      if (_touchTimer) { clearTimeout(_touchTimer); _touchTimer = null; }
+      return;
+    }
     e.preventDefault();
     const t = e.touches[0];
     if (_touchGhost) {
@@ -3227,15 +3229,15 @@ function renderTimeline() {
 
     return `<div class="timeline-item">
       <div class="timeline-dot ${dotClass}"></div>
-      <div class="timeline-content ${cardClass}" style="cursor:pointer;position:relative" onclick="toggleRoundDetail(${s.round})">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div style="flex:1;padding-right:60px">
+      <div class="timeline-content ${cardClass}" style="cursor:pointer" onclick="toggleRoundDetail(${s.round})">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="flex:1;min-width:0">
             <div class="timeline-date">${dateLabel}${badge}${intervalNote}</div>
             <div class="timeline-title">${s.label}</div>
             <div class="timeline-sub" id="round-detail-${s.round}">${fertBadges || displayDetail}</div>
           </div>
-          <div style="position:absolute;top:14px;right:14px;display:flex;gap:4px;align-items:center">
-            <button onclick="event.stopPropagation();openRoundEdit(${s.round})" style="background:rgba(45,106,79,0.08);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer;color:var(--green-dark)">✏️</button>
+          <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;padding-top:2px">
+            <button onclick="event.stopPropagation();openRoundEdit(${s.round})" style="background:rgba(45,106,79,0.08);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:var(--green-dark)">✏️</button>
             <span style="font-size:0.75rem;color:#aaa" id="round-toggle-${s.round}">▼</span>
           </div>
         </div>
