@@ -826,6 +826,9 @@
   .zone-집앞 { border-left-color: #6366f1 !important; }
   .zone-못자리 { border-left-color: #0ea5e9 !important; }
   .zone-연수형네앞 { border-left-color: #f59e0b !important; }
+  .zone-연수형A { border-left-color: #f59e0b !important; }
+  .zone-연수형B { border-left-color: #f97316 !important; }
+  .zone-연수형C { border-left-color: #eab308 !important; }
   .zone-짧은하우스 { border-left-color: #10b981 !important; }
   .zone-말장 { border-left-color: #e76f51 !important; }
   .zone-badge { display: inline-block; font-size: 0.68rem; padding: 1px 8px; border-radius: 10px; font-family: 'DM Mono', monospace; margin-left: 6px; background: var(--paper); color: var(--ink-light); }
@@ -939,11 +942,11 @@
 
   <!-- 탭 -->
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('record')"><span class="tab-icon">📝</span><span class="tab-label">기록 입력</span></button>
-    <button class="tab-btn" onclick="switchTab('logs')"><span class="tab-icon">📋</span><span class="tab-label">작업 일지</span></button>
-    <button class="tab-btn" onclick="switchTab('spray')"><span class="tab-icon">🧪</span><span class="tab-label">소독/엽면</span></button>
-    <button class="tab-btn" onclick="switchTab('schedule')"><span class="tab-icon">💧</span><span class="tab-label">관주 일정</span></button>
-    <button class="tab-btn" onclick="switchTab('compare')"><span class="tab-icon">📊</span><span class="tab-label">작년 비교</span></button>
+    <button class="tab-btn active" onclick="switchTab(event,'record')"><span class="tab-icon">📝</span><span class="tab-label">기록 입력</span></button>
+    <button class="tab-btn" onclick="switchTab(event,'logs')"><span class="tab-icon">📋</span><span class="tab-label">작업 일지</span></button>
+    <button class="tab-btn" onclick="switchTab(event,'spray')"><span class="tab-icon">🧪</span><span class="tab-label">소독/엽면</span></button>
+    <button class="tab-btn" onclick="switchTab(event,'schedule')"><span class="tab-icon">💧</span><span class="tab-label">관주 일정</span></button>
+    <button class="tab-btn" onclick="switchTab(event,'compare')"><span class="tab-icon">📊</span><span class="tab-label">작년 비교</span></button>
   </div>
 
   <!-- 탭: 기록 입력 -->
@@ -979,6 +982,9 @@
           <div class="zone-btn" data-zone="집앞" onclick="toggleZone(this)">🏠 집앞3</div>
           <div class="zone-btn" data-zone="못자리" onclick="toggleZone(this)">💧 못자리옆3</div>
           <div class="zone-btn" data-zone="연수형네앞" onclick="toggleZone(this)">🌾 연수형네앞20</div>
+          <div class="zone-btn" data-zone="연수형A" onclick="toggleZone(this)">🌾 연수형A</div>
+          <div class="zone-btn" data-zone="연수형B" onclick="toggleZone(this)">🌾 연수형B</div>
+          <div class="zone-btn" data-zone="연수형C" onclick="toggleZone(this)">🌾 연수형C</div>
           <div class="zone-btn" data-zone="짧은하우스" onclick="toggleZone(this)">🏗 짧은하우스6</div>
           <div class="zone-btn" data-zone="말장" onclick="toggleZone(this)">🌿 말장8</div>
           <div class="zone-btn" data-zone="말장NEW1" onclick="toggleZone(this)">🆕 말장NEW1</div>
@@ -1044,6 +1050,9 @@
       <button class="zone-btn" onclick="filterLogs(this,'집앞')" style="border-color:#6366f1">🏠 집앞3 <span class="zone-count" id="cnt-집앞">0</span></button>
       <button class="zone-btn" onclick="filterLogs(this,'못자리')" style="border-color:#0ea5e9">💧 못자리옆3 <span class="zone-count" id="cnt-못자리">0</span></button>
       <button class="zone-btn" onclick="filterLogs(this,'연수형네앞')" style="border-color:#f59e0b">🌾 연수형네앞20 <span class="zone-count" id="cnt-연수형네앞">0</span></button>
+      <button class="zone-btn" onclick="filterLogs(this,'연수형A')" style="border-color:#f59e0b">🌾 연수형A <span class="zone-count" id="cnt-연수형A">0</span></button>
+      <button class="zone-btn" onclick="filterLogs(this,'연수형B')" style="border-color:#f97316">🌾 연수형B <span class="zone-count" id="cnt-연수형B">0</span></button>
+      <button class="zone-btn" onclick="filterLogs(this,'연수형C')" style="border-color:#eab308">🌾 연수형C <span class="zone-count" id="cnt-연수형C">0</span></button>
       <button class="zone-btn" onclick="filterLogs(this,'짧은하우스')" style="border-color:#10b981">🏗 짧은하우스6 <span class="zone-count" id="cnt-짧은하우스">0</span></button>
       <button class="zone-btn" onclick="filterLogs(this,'말장')" style="border-color:#e76f51">🌿 말장8 <span class="zone-count" id="cnt-말장">0</span></button>
       <button class="zone-btn" onclick="filterLogs(this,'말장NEW1')" style="border-color:#d946ef">🆕 말장NEW1 <span class="zone-count" id="cnt-말장NEW1">0</span></button>
@@ -1076,6 +1085,9 @@
         <button class="zone-btn" onclick="filterSchedule(this,'집앞')" style="border-color:#6366f1">🏠 집앞3</button>
         <button class="zone-btn" onclick="filterSchedule(this,'못자리')" style="border-color:#0ea5e9">💧 못자리옆3</button>
         <button class="zone-btn" onclick="filterSchedule(this,'연수형네앞')" style="border-color:#f59e0b">🌾 연수형네앞20</button>
+        <button class="zone-btn" onclick="filterSchedule(this,'연수형A')" style="border-color:#f59e0b">🌾 연수형A</button>
+        <button class="zone-btn" onclick="filterSchedule(this,'연수형B')" style="border-color:#f97316">🌾 연수형B</button>
+        <button class="zone-btn" onclick="filterSchedule(this,'연수형C')" style="border-color:#eab308">🌾 연수형C</button>
         <button class="zone-btn" onclick="filterSchedule(this,'짧은하우스')" style="border-color:#10b981">🏗 짧은하우스6</button>
         <button class="zone-btn" onclick="filterSchedule(this,'말장')" style="border-color:#e76f51">🌿 말장8</button>
         <button class="zone-btn" onclick="filterSchedule(this,'말장NEW1')" style="border-color:#d946ef">🆕 말장NEW1</button>
@@ -1489,7 +1501,7 @@ function importData() {
 function showSyncStatus(msg) {}
 function hideSyncStatus() {}
 
-const ZONES = ['집앞','못자리','연수형네앞','짧은하우스','말장','말장NEW1'];
+const ZONES = ['집앞','못자리','연수형네앞','연수형A','연수형B','연수형C','짧은하우스','말장','말장NEW1'];
 const TYPE_COLORS = {
   '관주':     { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8' },
   '정식':     { bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d' },
@@ -1505,6 +1517,9 @@ const ZONE_COLORS = {
   '집앞': '#6366f1',
   '못자리': '#0ea5e9',
   '연수형네앞': '#f59e0b',
+  '연수형A': '#f59e0b',
+  '연수형B': '#f97316',
+  '연수형C': '#eab308',
   '짧은하우스': '#10b981',
   '말장': '#e76f51',
   '말장NEW1': '#d946ef',
@@ -1513,6 +1528,9 @@ const ZONE_LABELS = {
   '집앞': '🏠 집앞3',
   '못자리': '💧 못자리옆3',
   '연수형네앞': '🌾 연수형네앞20',
+  '연수형A': '🌾 연수형A',
+  '연수형B': '🌾 연수형B',
+  '연수형C': '🌾 연수형C',
   '짧은하우스': '🏗 짧은하우스6',
   '말장': '🌿 말장8',
   '말장NEW1': '🆕 말장NEW1',
@@ -1673,7 +1691,23 @@ async function init() {
   renderZoneStatus();
   renderCompare();
   renderLastYear();
+  updateZoneSelectorVisibility();
   initSprayTouchDrag();
+}
+
+// 현재 차수 기준으로 연수형 ABC 버튼 표시/숨김
+function updateZoneSelectorVisibility() {
+  const schedule = getWaterSchedule();
+  let nextRound = null;
+  for (const s of schedule) { if (!s.isActual) { nextRound = s; break; } }
+  const currentRound = nextRound ? nextRound.round : 99;
+  const showABC = currentRound >= 5;
+
+  ['연수형A','연수형B','연수형C'].forEach(zone => {
+    // 기록입력 구역 버튼
+    const btn = document.querySelector(`#zone-selector [data-zone="${zone}"]`);
+    if (btn) btn.style.display = showABC ? '' : 'none';
+  });
 }
 
 // 날짜 포맷
@@ -2019,6 +2053,7 @@ function saveLog() {
   // 작업 종류별 탭 이동
   const tabMap = { '관주': 'schedule', '소독/엽면시비': 'spray', '소독': 'spray', '엽면시비': 'spray' };
   const targetTab = tabMap[log.type] || 'logs';
+  currentTab = targetTab;
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + targetTab).classList.add('active');
@@ -2125,8 +2160,9 @@ function openZoneDateEdit(round, zone, date) {
   }
 
   // 비료 입력 목록 초기화 (기존 로그 있으면 불러오기, 없으면 빈칸 1개)
-  const logIdx = round - 2;
-  const existLog = round > 1 ? (zoneLogs[logIdx] || null) : null;
+  const ABC = ['연수형A','연수형B','연수형C'];
+  const logIdx = ABC.includes(zone) ? round - 5 : round - 2;
+  const existLog = logIdx >= 0 ? (zoneLogs[logIdx] || null) : null;
   initZoneFertList(existLog ? (existLog.ferts || []) : []);
 
   // 기존 관주 시간 불러오기
@@ -2225,8 +2261,9 @@ function saveZoneDateEdit() {
     const zoneWaterLogs = state.logs
       .filter(l => l.type === '관주' && l.zones && l.zones.includes(zone))
       .sort((a, b) => a.date.localeCompare(b.date));
-    const logIdx = round - 2;
-    const targetLog = zoneWaterLogs[logIdx] || null;
+    const ABC = ['연수형A','연수형B','연수형C'];
+    const logIdx = ABC.includes(zone) ? round - 5 : round - 2;
+    const targetLog = logIdx >= 0 ? (zoneWaterLogs[logIdx] || null) : null;
 
     if (targetLog) {
       if (targetLog.zones.length === 1) {
@@ -3061,8 +3098,12 @@ function renderZoneStatus() {
     if (!s.isActual) { nextRound = s; break; }
   }
 
-  // 완료된 구역 앞, 미완료 구역 뒤 정렬
-  const sortedZones = [...ZONES].sort((a, b) => {
+  // 완료된 구역 앞, 미완료 구역 뒤 정렬 (연수형ABC는 5차부터만 표시)
+  const abcZones = ['연수형A','연수형B','연수형C'];
+  const sortedZones = [...ZONES].filter(zone => {
+    if (abcZones.includes(zone) && nextRound && nextRound.round < 5) return false;
+    return true;
+  }).sort((a, b) => {
     const getStatus = (zone) => {
       const zoneLogs = state.logs.filter(l => l.type === '관주' && l.zones && l.zones.includes(zone));
       if (zoneLogs.length === 0) return 2; // 미기록
@@ -3164,6 +3205,11 @@ function renderTimeline() {
 
     // 구역별 관주일 계산
     const zoneRows = [...ZONES]
+      .filter(zone => {
+        // 연수형A/B/C는 5차부터만 표시
+        if (['연수형A','연수형B','연수형C'].includes(zone) && s.round < 5) return false;
+        return true;
+      })
       .map(zone => {
         const zoneWaterLogs = state.logs
           .filter(l => l.type === '관주' && l.zones && l.zones.includes(zone))
@@ -3176,7 +3222,9 @@ function renderTimeline() {
           isActualDate = true;
           log = null;
         } else {
-          log = zoneWaterLogs[s.round - 2] || null;
+          const ABC = ['연수형A','연수형B','연수형C'];
+          const logIdx = ABC.includes(zone) ? s.round - 5 : s.round - 2;
+          log = logIdx >= 0 ? (zoneWaterLogs[logIdx] || null) : null;
           displayDate = log ? log.date : null;
           isActualDate = !!displayDate;
         }
@@ -3293,11 +3341,30 @@ function renderLastYear() {
 }
 
 // 탭 전환
-function switchTab(tab) {
+let currentTab = 'record';
+
+function isFormDirty() {
+  const work = document.getElementById('input-work')?.value?.trim();
+  const memo = document.getElementById('input-memo')?.value?.trim();
+  const hasFert = [...document.querySelectorAll('#fert-list .fertilizer-item .fert-name')].some(el => el.value.trim());
+  const hasZone = state.selectedZones && state.selectedZones.length > 0;
+  return !!(work || memo || hasFert || hasZone);
+}
+
+function switchTab(e, tab) {
+  // 기록입력 탭에서 다른 탭으로 이동 시 작성 중이면 확인
+  if (currentTab === 'record' && tab !== 'record' && isFormDirty()) {
+    if (!confirm('작성 중인 내용이 있어요. 이동하면 사라져요.\n이동하려면 확인, 계속 작성하려면 취소를 눌러주세요.')) return;
+  }
+  currentTab = tab;
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = '';
+    b.style.color = '';
+  });
   document.getElementById('tab-' + tab).classList.add('active');
-  event.target.closest('.tab-btn').classList.add('active');
+  e.target.closest('.tab-btn').classList.add('active');
   if (tab === 'spray') renderSprayLogs();
 }
 
@@ -3338,15 +3405,30 @@ document.addEventListener('click', function(e) {
   if (!e.target.closest('.log-menu-wrap')) {
     document.querySelectorAll('.log-menu-dropdown.show').forEach(m => m.classList.remove('show'));
   }
-  // 모달 바깥 클릭시 닫기
+  // 모달 바깥 클릭시 닫기 - 빠른입력 모달은 취소 버튼으로만 닫기
+  if (_mousedownInsideModal) return;
   if (e.target.id === 'delete-modal') closeDeleteModal();
   if (e.target.id === 'edit-modal') closeEditModal();
   if (e.target.id === 'next-water-edit-modal') closeNextWaterEdit();
   if (e.target.id === 'round-edit-modal') closeRoundEdit();
   if (e.target.id === 'zone-date-edit-modal') closeZoneDateEdit();
-  if (e.target.id === 'spray-quick-modal') closeSprayQuickAdd();
-  if (e.target.id === 'water-quick-modal') closeWaterQuickAdd();
+  // spray-quick-modal, water-quick-modal 은 취소 버튼으로만 닫기 (드래그 오작동 방지)
 });
+
+// 모달 내부에서 mousedown/touchstart 시작 여부 추적
+let _mousedownInsideModal = false;
+document.addEventListener('mousedown', function(e) {
+  _mousedownInsideModal = !!e.target.closest('.modal-box');
+});
+document.addEventListener('mouseup', function() {
+  _mousedownInsideModal = false;
+});
+document.addEventListener('touchstart', function(e) {
+  _mousedownInsideModal = !!e.target.closest('.modal-box');
+}, {passive: true});
+document.addEventListener('touchend', function() {
+  setTimeout(() => { _mousedownInsideModal = false; }, 100);
+}, {passive: true});
 
 </script>
 </body>
