@@ -518,6 +518,27 @@
   .log-item.type-적과 { border-left-color: #f59e0b; }
   .log-item.type-기타 { border-left-color: #8b5cf6; }
 
+  /* 소독/엽면 PC 2열 그리드 */
+  @media (min-width: 768px) {
+    #spray-folders .spray-folder-drop,
+    #spray-unassigned > div {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    #spray-folders .spray-folder-empty {
+      grid-column: 1 / -1;
+    }
+    #tab-spray .log-item {
+      padding: 10px 12px;
+      font-size: 0.85rem;
+    }
+    #tab-spray .log-date { font-size: 0.78rem; }
+    #tab-spray .log-work { font-size: 0.82rem; }
+    #tab-spray .log-fert { font-size: 0.75rem; }
+    #tab-spray .log-memo { font-size: 0.72rem; }
+  }
+
   .log-header {
     display: flex;
     justify-content: space-between;
@@ -554,8 +575,9 @@
     background: rgba(82,183,136,0.1);
     padding: 4px 10px;
     border-radius: 4px;
-    display: inline-block;
+    display: block;
     margin-bottom: 4px;
+    overflow: visible;
   }
 
   .log-memo {
@@ -1600,8 +1622,12 @@ function calcWaterSchedule(zone) {
         .map(l => l.date);
     });
     roundDates = [];
+    const ABC_ZONES = ['연수형A','연수형B','연수형C'];
     for (let i = 0; i < waterPattern.length - 1; i++) {
-      const datesForRound = ZONES.map(z => perZone[z][i]).filter(Boolean);
+      const datesForRound = ZONES.map(z => {
+        const idx = ABC_ZONES.includes(z) ? i - 3 : i; // ABC는 5차(i=3)부터 시작 → index 0
+        return idx >= 0 ? perZone[z][idx] : undefined;
+      }).filter(Boolean);
       if (datesForRound.length > 0) {
         roundDates.push(datesForRound.sort()[0]);
       } else break;
@@ -2408,7 +2434,7 @@ function saveRoundEdit() {
 function renderSprayLogs() {
   const sprayLogs = state.logs
     .filter(l => l.type === '소독/엽면시비' || l.type === '소독' || l.type === '엽면시비')
-    .sort((a,b) => b.date.localeCompare(a.date));
+    .sort((a,b) => a.date.localeCompare(b.date));
 
   // 폴더에 속한 logId 집합
   const assignedIds = new Set((state.sprayFolders||[]).flatMap(f => f.logIds||[]));
@@ -2422,7 +2448,8 @@ function renderSprayLogs() {
   (state.sprayFolders||[]).forEach(folder => {
     const folderLogs = (folder.logIds||[])
       .map(id => sprayLogs.find(l => l.id === id))
-      .filter(Boolean);
+      .filter(Boolean)
+      .sort((a, b) => a.date.localeCompare(b.date)); // 날짜 오래된순 정렬
     const div = document.createElement('div');
     div.className = 'spray-folder';
     div.innerHTML = `
