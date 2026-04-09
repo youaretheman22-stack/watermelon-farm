@@ -1428,9 +1428,15 @@ async function saveToCloud() {
   try {
     const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [] };
     localStorage.setItem('farm_data_2026', JSON.stringify(data));
-    if (window.fbSave) await window.fbSave(JSON.stringify(data));
+    if (window.fbSave) {
+      await window.fbSave(JSON.stringify(data));
+      console.log('✅ Firebase 저장 성공');
+    } else {
+      console.warn('⚠️ fbSave 없음 - Firebase 미연결');
+    }
   } catch(e) {
-    console.error('저장 실패:', e);
+    console.error('❌ 저장 실패:', e);
+    alert('저장 실패: ' + e.message);
   }
 }
 
