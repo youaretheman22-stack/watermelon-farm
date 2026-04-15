@@ -1115,6 +1115,7 @@
         <button class="zone-btn" onclick="filterSchedule(this,'말장NEW1')" style="border-color:#d946ef">🆕 말장NEW1</button>
       </div>
       <button onclick="openWaterQuickAdd()" style="flex-shrink:0;padding:7px 14px;background:var(--green-mid);color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 빠른입력</button>
+      <button onclick="addBlankRound()" style="flex-shrink:0;padding:7px 14px;background:white;color:var(--green-mid);border:1.5px solid var(--green-mid);border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 공백 차수</button>
     </div>
 
     <!-- 구역별 관주 현황 요약 -->
@@ -1354,6 +1355,10 @@
     <input type="hidden" id="round-edit-round">
     <div style="display:flex;flex-direction:column;gap:12px">
       <div>
+        <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">✏️ 제목 수정</label>
+        <input type="text" id="round-edit-title" placeholder="예) 5차 관주 (착과전)" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box">
+      </div>
+      <div>
         <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">📅 날짜 수정 <span style="color:#aaa;font-weight:400">(비우면 자동계산)</span></label>
         <input type="date" id="round-edit-date" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box;-webkit-appearance:none">
       </div>
@@ -1369,6 +1374,21 @@
     <div class="modal-btns" style="margin-top:20px">
       <button class="modal-btn-cancel" onclick="closeRoundEdit()">취소</button>
       <button class="modal-btn-delete" style="background:var(--green-mid)" onclick="saveRoundEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 관주 기록 차수 이동 모달 -->
+<div class="modal-overlay" id="move-water-modal">
+  <div class="modal-box" style="max-width:340px;text-align:left">
+    <div style="font-size:1rem;font-weight:700;color:var(--ink);margin-bottom:4px">🔀 차수 이동</div>
+    <div id="move-water-label" style="font-size:0.8rem;color:var(--ink-light);margin-bottom:14px"></div>
+    <input type="hidden" id="move-water-logid">
+    <input type="hidden" id="move-water-zone">
+    <input type="hidden" id="move-water-fromround">
+    <div id="move-water-options" style="display:flex;flex-direction:column;gap:6px"></div>
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="modal-btn-cancel" onclick="document.getElementById('move-water-modal').classList.remove('show')">취소</button>
     </div>
   </div>
 </div>
@@ -1420,13 +1440,16 @@ const state = {
   scheduleFilter: '전체',
   saving: false,
   syncing: false,
-  sprayFolders: [], // [{id, name, logIds:[]}]
+  sprayFolders: [],
+  roundLabels: {},
+  roundOrder: [],    // 차수 순서 [1,2,3,...] - 비어있으면 기본순
+  extraRounds: [],   // 추가된 공백 차수 [{round, label, detail, interval}]
 };
 
 // Firebase 클라우드 저장/불러오기
 async function saveToCloud() {
   try {
-    const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [] };
+    const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [], roundLabels: state.roundLabels || {}, roundOrder: state.roundOrder || [], extraRounds: state.extraRounds || [] };
     localStorage.setItem('farm_data_2026', JSON.stringify(data));
     if (window.fbSave) {
       await window.fbSave(JSON.stringify(data));
@@ -1455,6 +1478,9 @@ async function loadFromCloud() {
           state.roundDates = data.roundDates || {};
           state.zonePlantingDates = data.zonePlantingDates || {};
           state.sprayFolders = data.sprayFolders || [];
+          state.roundLabels = data.roundLabels || {};
+          state.roundOrder = data.roundOrder || [];
+          state.extraRounds = data.extraRounds || [];
         }
         localStorage.setItem('farm_data_2026', raw);
         return;
@@ -1472,6 +1498,9 @@ async function loadFromCloud() {
         state.roundDates = data.roundDates || {};
         state.zonePlantingDates = data.zonePlantingDates || {};
         state.sprayFolders = data.sprayFolders || [];
+        state.roundLabels = data.roundLabels || {};
+        state.roundOrder = data.roundOrder || [];
+        state.extraRounds = data.extraRounds || [];
       }
     }
   } catch(e) {
@@ -1599,6 +1628,19 @@ const waterPattern = [
   { round: 8, label: '수정후 2차 관주', detail: '퍼티케어 15-5-35 + 가야칼 + 프리미엄아미노', intervalFrom: 'prev', interval: 2 },
 ];
 
+// waterPattern + extraRounds를 roundOrder 순서로 반환
+function getOrderedPattern() {
+  const base = [...waterPattern, ...(state.extraRounds || [])];
+  const order = state.roundOrder || [];
+  if (!order.length) return base;
+  const map = {};
+  base.forEach(p => { map[p.round] = p; });
+  const ordered = order.map(r => map[r]).filter(Boolean);
+  // order에 없는 항목은 뒤에 추가
+  base.forEach(p => { if (!order.includes(p.round)) ordered.push(p); });
+  return ordered;
+}
+
 // 실제 관주 기록 기반으로 일정 동적 계산
 function calcWaterSchedule(zone) {
   // 구역별 정식일 오버라이드 반영
@@ -1629,7 +1671,8 @@ function calcWaterSchedule(zone) {
     });
     roundDates = [];
     const ABC_ZONES = ['연수형A','연수형B','연수형C'];
-    for (let i = 0; i < waterPattern.length - 1; i++) {
+    const pat = getOrderedPattern();
+    for (let i = 0; i < pat.length - 1; i++) {
       const datesForRound = ZONES.map(z => {
         const idx = ABC_ZONES.includes(z) ? i - 3 : i; // ABC는 5차(i=3)부터 시작 → index 0
         return idx >= 0 ? perZone[z][idx] : undefined;
@@ -1640,11 +1683,12 @@ function calcWaterSchedule(zone) {
     }
   }
 
+  const pattern = getOrderedPattern();
   const schedule = [];
   let prevDate = plantingDate;
 
-  for (let i = 0; i < waterPattern.length; i++) {
-    const p = waterPattern[i];
+  for (let i = 0; i < pattern.length; i++) {
+    const p = pattern[i];
 
     let expectedDate;
     if (p.intervalFrom === 'planting') {
@@ -1673,7 +1717,7 @@ function calcWaterSchedule(zone) {
 
     schedule.push({
       round: p.round,
-      label: p.label,
+      label: (state.roundLabels && state.roundLabels[p.round]) || p.label,
       detail: p.detail,
       date: finalDate,
       expectedDate,
@@ -2346,14 +2390,119 @@ function toggleRoundDetail(round) {
   else openRoundSet.add(String(round));
 }
 
+function openMoveWater(logId, zone, fromRound) {
+  if (!logId) return;
+  const schedule = getWaterSchedule();
+  const zoneLabel = ZONE_LABELS[zone] || zone;
+  document.getElementById('move-water-logid').value = logId;
+  document.getElementById('move-water-zone').value = zone;
+  document.getElementById('move-water-fromround').value = fromRound;
+  document.getElementById('move-water-label').innerHTML =
+    `<span style="color:${ZONE_COLORS[zone]};font-weight:700">${zoneLabel}</span> 기록을 다른 차수로 이동`;
+
+  const ABC = ['연수형A','연수형B','연수형C'];
+  const options = schedule
+    .filter(s => {
+      if (s.round === fromRound) return false;
+      if (ABC.includes(zone) && s.round < 5) return false;
+      return true;
+    })
+    .map(s => `<button onclick="moveWaterToRound(${logId},'${zone}',${fromRound},${s.round})"
+      style="width:100%;text-align:left;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;background:white;cursor:pointer;font-family:Noto Serif KR,serif;font-size:0.85rem">
+      ${s.label}
+    </button>`).join('');
+  document.getElementById('move-water-options').innerHTML = options;
+  document.getElementById('move-water-modal').classList.add('show');
+}
+
+function moveWaterToRound(logId, zone, fromRound, toRound) {
+  logId = Number(logId);
+  const log = state.logs.find(l => l.id === logId);
+  if (!log) return;
+
+  const ABC = ['연수형A','연수형B','연수형C'];
+
+  // toRound의 예정 날짜 계산
+  const schedule = getWaterSchedule();
+  const targetS = schedule.find(s => s.round === toRound);
+  const newDate = targetS ? targetS.date : log.date;
+
+  if (log.zones.length === 1) {
+    // 단독 로그: 날짜 변경
+    log.date = newDate;
+  } else {
+    // 다중 구역 로그: 해당 구역만 분리
+    log.zones = log.zones.filter(z => z !== zone);
+    const zd = {};
+    if (log.zoneDurations && log.zoneDurations[zone]) zd[zone] = log.zoneDurations[zone];
+    state.logs.push({
+      id: Date.now(),
+      date: newDate,
+      type: '관주',
+      zones: [zone],
+      work: log.work || `${toRound}차 관주`,
+      workers: log.workers || '',
+      zoneDurations: zd,
+      ferts: JSON.parse(JSON.stringify(log.ferts || [])),
+      memo: log.memo || ''
+    });
+  }
+
+  state.logs.sort((a, b) => a.date.localeCompare(b.date));
+  saveToCloud();
+  document.getElementById('move-water-modal').classList.remove('show');
+  renderTimeline();
+  renderZoneStatus();
+}
+
+// 차수 순서 변경
+function moveRound(round, dir) {
+  const pattern = getOrderedPattern();
+  const order = pattern.map(p => p.round);
+  const idx = order.indexOf(round);
+  if (idx < 0) return;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= order.length) return;
+  // swap
+  [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+  state.roundOrder = order;
+  saveToCloud();
+  renderTimeline();
+}
+
+// 공백 차수 추가
+function addBlankRound() {
+  const pattern = getOrderedPattern();
+  const maxRound = Math.max(...pattern.map(p => p.round));
+  const newRound = maxRound + 1;
+  if (!state.extraRounds) state.extraRounds = [];
+  state.extraRounds.push({
+    round: newRound,
+    label: `${newRound}차 관주`,
+    detail: '',
+    intervalFrom: 'prev',
+    interval: 7
+  });
+  if (!state.roundOrder || !state.roundOrder.length) {
+    state.roundOrder = pattern.map(p => p.round);
+  }
+  state.roundOrder.push(newRound);
+  saveToCloud();
+  renderTimeline();
+}
+
+// openRoundEdit
 function openRoundEdit(round) {
   const schedule = getWaterSchedule();
   const s = schedule.find(x => x.round === round);
   if (!s) return;
   const customDetail = state.roundDetails && state.roundDetails[round];
   const customDate = state.roundDates && state.roundDates[round];
+  const defaultLabel = waterPattern.find(p => p.round === round)?.label || s.label;
   document.getElementById('round-edit-round').value = round;
   document.getElementById('round-edit-label').textContent = s.label;
+  document.getElementById('round-edit-title').value = (state.roundLabels && state.roundLabels[round]) || '';
+  document.getElementById('round-edit-title').placeholder = defaultLabel;
   document.getElementById('round-edit-detail').value = customDetail || s.detail;
   document.getElementById('round-edit-date').value = customDate || (s.isActual ? s.date : '');
 
@@ -2404,9 +2553,13 @@ function saveRoundEdit() {
   const round = parseInt(document.getElementById('round-edit-round').value);
   const val = document.getElementById('round-edit-detail').value.trim();
   const date = document.getElementById('round-edit-date').value;
+  const title = document.getElementById('round-edit-title').value.trim();
   if (!state.roundDetails) state.roundDetails = {};
   if (!state.roundDates) state.roundDates = {};
+  if (!state.roundLabels) state.roundLabels = {};
   if (val) state.roundDetails[round] = val;
+  if (title) state.roundLabels[round] = title;
+  else delete state.roundLabels[round];
   if (date) {
     state.roundDates[round] = date;
   } else {
@@ -3282,7 +3435,10 @@ function renderTimeline() {
           return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
-              <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','${displayDate}')">✓ ${fmtDate(displayDate)}</span>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button onclick="event.stopPropagation();openMoveWater(${log ? log.id : 'null'},'${zone}',${s.round})" style="font-size:0.68rem;padding:2px 6px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer">🔀</button>
+                <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','${displayDate}')">✓ ${fmtDate(displayDate)}</span>
+              </div>
             </div>
             ${workLine ? `<div style="font-size:0.7rem;color:#888;margin-top:2px;padding-left:2px">📝 ${workLine}${duration ? ' · ⏱ '+duration : ''}</div>` : (duration ? `<div style="font-size:0.7rem;color:#888;margin-top:2px;padding-left:2px">⏱ ${duration}</div>` : '')}
             ${fLine ? `<div style="font-size:0.7rem;color:#555;margin-top:2px;padding-left:2px;line-height:1.7">${fLine}</div>` : ''}
@@ -3318,6 +3474,10 @@ function renderTimeline() {
             <div class="timeline-sub" id="round-detail-${s.round}">${fertBadges || displayDetail}</div>
           </div>
           <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;padding-top:2px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <button onclick="event.stopPropagation();moveRound(${s.round},-1)" style="background:none;border:1px solid #e0e0e0;border-radius:4px;padding:1px 5px;font-size:0.65rem;cursor:pointer;color:#aaa;line-height:1">▲</button>
+              <button onclick="event.stopPropagation();moveRound(${s.round},1)" style="background:none;border:1px solid #e0e0e0;border-radius:4px;padding:1px 5px;font-size:0.65rem;cursor:pointer;color:#aaa;line-height:1">▼</button>
+            </div>
             <button onclick="event.stopPropagation();openRoundEdit(${s.round})" style="background:rgba(45,106,79,0.08);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:var(--green-dark)">✏️</button>
             <span style="font-size:0.75rem;color:#aaa" id="round-toggle-${s.round}">▼</span>
           </div>
