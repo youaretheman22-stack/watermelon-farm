@@ -1321,7 +1321,10 @@
     <!-- 날짜 + 비료 입력 -->
     <div id="zone-date-input-section">
       <div style="margin-bottom:10px">
-        <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">📅 관주 날짜</label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <label style="font-size:0.8rem;color:var(--ink-light)">📅 관주 날짜</label>
+          <button id="zone-fert-paste-btn" onclick="pasteCopiedFerts()" style="display:none;font-size:0.72rem;color:var(--green-mid);background:none;border:1px solid var(--green-mid);border-radius:6px;padding:2px 8px;cursor:pointer">📋 붙여넣기</button>
+        </div>
         <input type="date" id="zone-date-edit-date" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box;-webkit-appearance:none">
       </div>
       <div style="margin-bottom:10px">
@@ -1386,9 +1389,12 @@
     <input type="hidden" id="move-water-logid">
     <input type="hidden" id="move-water-zone">
     <input type="hidden" id="move-water-fromround">
+    <input type="hidden" id="move-water-toround">
     <div id="move-water-options" style="display:flex;flex-direction:column;gap:6px"></div>
+    <div id="move-water-confirm" style="display:none;margin-top:12px;padding:10px 12px;background:#f0fdf4;border:1.5px solid var(--green-mid);border-radius:8px;font-size:0.85rem;color:var(--green-dark)"></div>
     <div class="modal-btns" style="margin-top:16px">
       <button class="modal-btn-cancel" onclick="document.getElementById('move-water-modal').classList.remove('show')">취소</button>
+      <button id="move-water-ok" class="modal-btn-delete" style="background:var(--green-mid);display:none" onclick="confirmMoveWater()">이동 확인</button>
     </div>
   </div>
 </div>
@@ -1444,12 +1450,13 @@ const state = {
   roundLabels: {},
   roundOrder: [],    // 차수 순서 [1,2,3,...] - 비어있으면 기본순
   extraRounds: [],   // 추가된 공백 차수 [{round, label, detail, interval}]
+  zoneLogOrder: {},  // {zone: [logId,...]} 구역별 로그→차수 순서 오버라이드
 };
 
 // Firebase 클라우드 저장/불러오기
 async function saveToCloud() {
   try {
-    const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [], roundLabels: state.roundLabels || {}, roundOrder: state.roundOrder || [], extraRounds: state.extraRounds || [] };
+    const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [], roundLabels: state.roundLabels || {}, roundOrder: state.roundOrder || [], extraRounds: state.extraRounds || [], zoneLogOrder: state.zoneLogOrder || {} };
     localStorage.setItem('farm_data_2026', JSON.stringify(data));
     if (window.fbSave) {
       await window.fbSave(JSON.stringify(data));
@@ -1481,6 +1488,7 @@ async function loadFromCloud() {
           state.roundLabels = data.roundLabels || {};
           state.roundOrder = data.roundOrder || [];
           state.extraRounds = data.extraRounds || [];
+          state.zoneLogOrder = data.zoneLogOrder || {};
         }
         localStorage.setItem('farm_data_2026', raw);
         return;
@@ -1501,6 +1509,7 @@ async function loadFromCloud() {
         state.roundLabels = data.roundLabels || {};
         state.roundOrder = data.roundOrder || [];
         state.extraRounds = data.extraRounds || [];
+        state.zoneLogOrder = data.zoneLogOrder || {};
       }
     }
   } catch(e) {
@@ -1699,16 +1708,15 @@ function calcWaterSchedule(zone) {
 
     let actual, isActual;
     if (p.round === 1) {
-      // 1차는 정식당일 자동 완료 (roundDates[1] 글로벌 오버라이드 제거)
       actual = plantingDate;
       isActual = true;
     } else {
-      // 수동 날짜 수정(전체 차수 단위)이 있으면 우선, 없으면 로그 매칭
       if (state.roundDates && state.roundDates[p.round]) {
         actual = state.roundDates[p.round];
         isActual = true;
       } else {
-        actual = roundDates[p.round - 2] || null;
+        // i는 pattern 순서 기준 인덱스, 1차(i=0) 제외하면 roundDates 인덱스 = i-1
+        actual = roundDates[i - 1] || null;
         isActual = !!actual;
       }
     }
@@ -2237,8 +2245,9 @@ function openZoneDateEdit(round, zone, date) {
 
   // 비료 입력 목록 초기화 (기존 로그 있으면 불러오기, 없으면 빈칸 1개)
   const ABC = ['연수형A','연수형B','연수형C'];
-  const logIdx = ABC.includes(zone) ? round - 5 : round - 2;
-  const existLog = logIdx >= 0 ? (zoneLogs[logIdx] || null) : null;
+  const orderIdx = getRoundOrderIdx(round);
+  const logIdx = ABC.includes(zone) ? orderIdx - 4 : orderIdx - 1;
+  const existLog = logIdx >= 0 ? getZoneLogAtIdx(zone, logIdx, round) : null;
   initZoneFertList(existLog ? (existLog.ferts || []) : []);
 
   // 기존 관주 시간 불러오기
@@ -2246,6 +2255,10 @@ function openZoneDateEdit(round, zone, date) {
     ? ((existLog.zoneDurations && existLog.zoneDurations[zone]) || existLog.duration || '')
     : '';
   document.getElementById('zone-date-edit-duration').value = prevDuration;
+
+  // 붙여넣기 버튼 - 복사된 비료 있을 때만 표시
+  const pasteBtn = document.getElementById('zone-fert-paste-btn');
+  if (pasteBtn) pasteBtn.style.display = (_copiedFerts && _copiedFerts.length) ? '' : 'none';
 
   document.getElementById('zone-date-edit-modal').classList.add('show');
 }
@@ -2337,9 +2350,10 @@ function saveZoneDateEdit() {
     const zoneWaterLogs = state.logs
       .filter(l => l.type === '관주' && l.zones && l.zones.includes(zone))
       .sort((a, b) => a.date.localeCompare(b.date));
-    const ABC = ['연수형A','연수형B','연수형C'];
-    const logIdx = ABC.includes(zone) ? round - 5 : round - 2;
-    const targetLog = logIdx >= 0 ? (zoneWaterLogs[logIdx] || null) : null;
+    const ABC2 = ['연수형A','연수형B','연수형C'];
+    const orderIdx2 = getRoundOrderIdx(round);
+    const logIdx = ABC2.includes(zone) ? orderIdx2 - 4 : orderIdx2 - 1;
+    const targetLog = logIdx >= 0 ? getZoneLogAtIdx(zone, logIdx, round) : null;
 
     if (targetLog) {
       if (targetLog.zones.length === 1) {
@@ -2397,8 +2411,11 @@ function openMoveWater(logId, zone, fromRound) {
   document.getElementById('move-water-logid').value = logId;
   document.getElementById('move-water-zone').value = zone;
   document.getElementById('move-water-fromround').value = fromRound;
+  document.getElementById('move-water-toround').value = '';
+  document.getElementById('move-water-confirm').style.display = 'none';
+  document.getElementById('move-water-ok').style.display = 'none';
   document.getElementById('move-water-label').innerHTML =
-    `<span style="color:${ZONE_COLORS[zone]};font-weight:700">${zoneLabel}</span> 기록을 다른 차수로 이동`;
+    `<span style="color:${ZONE_COLORS[zone]};font-weight:700">${zoneLabel}</span> 기록을 이동할 차수 선택:`;
 
   const ABC = ['연수형A','연수형B','연수형C'];
   const options = schedule
@@ -2407,7 +2424,8 @@ function openMoveWater(logId, zone, fromRound) {
       if (ABC.includes(zone) && s.round < 5) return false;
       return true;
     })
-    .map(s => `<button onclick="moveWaterToRound(${logId},'${zone}',${fromRound},${s.round})"
+    .map(s => `<button onclick="selectMoveTarget(${s.round},'${s.label}')"
+      id="move-opt-${s.round}"
       style="width:100%;text-align:left;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;background:white;cursor:pointer;font-family:Noto Serif KR,serif;font-size:0.85rem">
       ${s.label}
     </button>`).join('');
@@ -2415,40 +2433,63 @@ function openMoveWater(logId, zone, fromRound) {
   document.getElementById('move-water-modal').classList.add('show');
 }
 
+function selectMoveTarget(toRound, label) {
+  // 이전 선택 초기화
+  document.querySelectorAll('#move-water-options button').forEach(b => {
+    b.style.background = 'white';
+    b.style.borderColor = 'var(--border)';
+    b.style.color = 'var(--ink)';
+  });
+  // 선택된 버튼 강조
+  const btn = document.getElementById('move-opt-' + toRound);
+  if (btn) {
+    btn.style.background = 'var(--green-mid)';
+    btn.style.borderColor = 'var(--green-mid)';
+    btn.style.color = 'white';
+  }
+  document.getElementById('move-water-toround').value = toRound;
+  document.getElementById('move-water-confirm').style.display = 'block';
+  document.getElementById('move-water-confirm').textContent = `→ "${label}" 으로 이동합니다`;
+  document.getElementById('move-water-ok').style.display = '';
+}
+
+function confirmMoveWater() {
+  const logId = Number(document.getElementById('move-water-logid').value);
+  const zone = document.getElementById('move-water-zone').value;
+  const fromRound = Number(document.getElementById('move-water-fromround').value);
+  const toRound = Number(document.getElementById('move-water-toround').value);
+  if (!toRound) return;
+  moveWaterToRound(logId, zone, fromRound, toRound);
+}
+
+// 비료 복사
+let _copiedFerts = null;
+function copyFerts(logId) {
+  if (!logId) return;
+  const log = state.logs.find(l => l.id === Number(logId));
+  if (!log || !log.ferts || !log.ferts.length) { alert('복사할 비료 내용이 없어요'); return; }
+  _copiedFerts = JSON.parse(JSON.stringify(log.ferts));
+  alert(`비료 ${_copiedFerts.length}개 복사됨! 날짜 입력 창에서 붙여넣기 하세요`);
+}
+
+function pasteCopiedFerts() {
+  if (!_copiedFerts || !_copiedFerts.length) { alert('복사된 비료가 없어요'); return; }
+  initZoneFertList(_copiedFerts);
+}
+
+// openMoveWater 끝
+
 function moveWaterToRound(logId, zone, fromRound, toRound) {
   logId = Number(logId);
-  const log = state.logs.find(l => l.id === logId);
-  if (!log) return;
+  if (!state.zoneLogOrder) state.zoneLogOrder = {};
+  if (!state.zoneLogOrder[zone]) state.zoneLogOrder[zone] = {};
 
-  const ABC = ['연수형A','연수형B','연수형C'];
+  // toRound 자리에 이 logId를 강제 배치
+  state.zoneLogOrder[zone][toRound] = logId;
 
-  // toRound의 예정 날짜 계산
-  const schedule = getWaterSchedule();
-  const targetS = schedule.find(s => s.round === toRound);
-  const newDate = targetS ? targetS.date : log.date;
+  // fromRound 자리는 비움 (null = 빈 슬롯)
+  state.zoneLogOrder[zone][fromRound] = null;
 
-  if (log.zones.length === 1) {
-    // 단독 로그: 날짜 변경
-    log.date = newDate;
-  } else {
-    // 다중 구역 로그: 해당 구역만 분리
-    log.zones = log.zones.filter(z => z !== zone);
-    const zd = {};
-    if (log.zoneDurations && log.zoneDurations[zone]) zd[zone] = log.zoneDurations[zone];
-    state.logs.push({
-      id: Date.now(),
-      date: newDate,
-      type: '관주',
-      zones: [zone],
-      work: log.work || `${toRound}차 관주`,
-      workers: log.workers || '',
-      zoneDurations: zd,
-      ferts: JSON.parse(JSON.stringify(log.ferts || [])),
-      memo: log.memo || ''
-    });
-  }
-
-  state.logs.sort((a, b) => a.date.localeCompare(b.date));
   saveToCloud();
   document.getElementById('move-water-modal').classList.remove('show');
   renderTimeline();
@@ -2457,8 +2498,9 @@ function moveWaterToRound(logId, zone, fromRound, toRound) {
 
 // 차수 순서 변경
 function moveRound(round, dir) {
+  round = Number(round);
   const pattern = getOrderedPattern();
-  const order = pattern.map(p => p.round);
+  const order = pattern.map(p => Number(p.round));
   const idx = order.indexOf(round);
   if (idx < 0) return;
   const newIdx = idx + dir;
@@ -2489,6 +2531,28 @@ function addBlankRound() {
   state.roundOrder.push(newRound);
   saveToCloud();
   renderTimeline();
+}
+
+// round 번호 → 순서 인덱스 변환 (0-based, 1차=0)
+function getRoundOrderIdx(round) {
+  const pattern = getOrderedPattern();
+  return pattern.findIndex(p => p.round === round);
+}
+
+// 구역의 특정 round 로그 반환 - zoneLogOrder[zone][round] 오버라이드 우선
+function getZoneLogAtIdx(zone, orderIdx, round) {
+  const zoneLogs = state.logs
+    .filter(l => l.type === '관주' && l.zones && l.zones.includes(zone))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // round 기반 직접 매핑 확인
+  const override = state.zoneLogOrder && state.zoneLogOrder[zone];
+  if (override && round !== undefined && override[round] !== undefined) {
+    if (override[round] === null) return null; // 빈 슬롯
+    return zoneLogs.find(l => l.id === override[round]) || null;
+  }
+  // 기본: 날짜순 인덱스
+  return zoneLogs[orderIdx] || null;
 }
 
 // openRoundEdit
@@ -3409,8 +3473,8 @@ function renderTimeline() {
           log = null;
         } else {
           const ABC = ['연수형A','연수형B','연수형C'];
-          const logIdx = ABC.includes(zone) ? s.round - 5 : s.round - 2;
-          log = logIdx >= 0 ? (zoneWaterLogs[logIdx] || null) : null;
+          const logIdx = ABC.includes(zone) ? idx - 4 : idx - 1;
+          log = logIdx >= 0 ? getZoneLogAtIdx(zone, logIdx, s.round) : null;
           displayDate = log ? log.date : null;
           isActualDate = !!displayDate;
         }
@@ -3436,7 +3500,8 @@ function renderTimeline() {
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
               <div style="display:flex;align-items:center;gap:6px">
-                <button onclick="event.stopPropagation();openMoveWater(${log ? log.id : 'null'},'${zone}',${s.round})" style="font-size:0.68rem;padding:2px 6px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer">🔀</button>
+                <button onclick="event.stopPropagation();copyFerts(${log ? log.id : 'null'})" style="font-size:0.68rem;padding:2px 6px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer" title="비료 복사">📋</button>
+                <button onclick="event.stopPropagation();openMoveWater(${log ? log.id : 'null'},'${zone}',${s.round})" style="font-size:0.68rem;padding:2px 6px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer" title="차수 이동">🔀</button>
                 <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','${displayDate}')">✓ ${fmtDate(displayDate)}</span>
               </div>
             </div>
