@@ -1450,13 +1450,14 @@ const state = {
   roundLabels: {},
   roundOrder: [],    // 차수 순서 [1,2,3,...] - 비어있으면 기본순
   extraRounds: [],   // 추가된 공백 차수 [{round, label, detail, interval}]
-  zoneLogOrder: {},  // {zone: [logId,...]} 구역별 로그→차수 순서 오버라이드
+  zoneLogOrder: {},  // {zone: {round: logId}} 구역별 로그→차수 순서 오버라이드
+  roundZoneLogs: {}, // {"round_zone": [logId,...]} 차수+구역별 복수 로그
 };
 
 // Firebase 클라우드 저장/불러오기
 async function saveToCloud() {
   try {
-    const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [], roundLabels: state.roundLabels || {}, roundOrder: state.roundOrder || [], extraRounds: state.extraRounds || [], zoneLogOrder: state.zoneLogOrder || {} };
+    const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [], roundLabels: state.roundLabels || {}, roundOrder: state.roundOrder || [], extraRounds: state.extraRounds || [], zoneLogOrder: state.zoneLogOrder || {}, roundZoneLogs: state.roundZoneLogs || {} };
     localStorage.setItem('farm_data_2026', JSON.stringify(data));
     if (window.fbSave) {
       await window.fbSave(JSON.stringify(data));
@@ -1489,6 +1490,7 @@ async function loadFromCloud() {
           state.roundOrder = data.roundOrder || [];
           state.extraRounds = data.extraRounds || [];
           state.zoneLogOrder = data.zoneLogOrder || {};
+          state.roundZoneLogs = data.roundZoneLogs || {};
         }
         localStorage.setItem('farm_data_2026', raw);
         return;
@@ -1510,6 +1512,7 @@ async function loadFromCloud() {
         state.roundOrder = data.roundOrder || [];
         state.extraRounds = data.extraRounds || [];
         state.zoneLogOrder = data.zoneLogOrder || {};
+        state.roundZoneLogs = data.roundZoneLogs || {};
       }
     }
   } catch(e) {
@@ -2378,10 +2381,21 @@ function saveZoneDateEdit() {
     } else {
       const zd = {};
       if (duration) zd[zone] = duration;
+      const newId = Date.now();
       state.logs.push({
-        id: Date.now(), date, type: '관주', zones: [zone],
+        id: newId, date, type: '관주', zones: [zone],
         work: `${round}차 관주`, workers: '', zoneDurations: zd, ferts, memo: ''
       });
+      // roundZoneLogs에 등록 (복수 기입 지원)
+      const key = `${round}_${zone}`;
+      if (!state.roundZoneLogs) state.roundZoneLogs = {};
+      if (!state.roundZoneLogs[key]) {
+        // 기존에 이미 있는 로그가 있으면 함께 등록
+        const existing = getZoneLogAtIdx(zone, (ABC2.includes(zone) ? getRoundOrderIdx(round) - 4 : getRoundOrderIdx(round) - 1), round);
+        state.roundZoneLogs[key] = existing ? [existing.id, newId] : [newId];
+      } else {
+        state.roundZoneLogs[key].push(newId);
+      }
     }
     state.logs.sort((a, b) => a.date.localeCompare(b.date));
   }
@@ -2537,6 +2551,18 @@ function addBlankRound() {
 function getRoundOrderIdx(round) {
   const pattern = getOrderedPattern();
   return pattern.findIndex(p => p.round === round);
+}
+
+// 차수+구역의 모든 로그 반환 (roundZoneLogs 우선, 없으면 getZoneLogAtIdx 기본값)
+function getRoundZoneAllLogs(round, zone, idx) {
+  const key = `${round}_${zone}`;
+  const extra = state.roundZoneLogs && state.roundZoneLogs[key];
+  if (extra && extra.length > 0) {
+    return extra.map(id => state.logs.find(l => l.id === id)).filter(Boolean);
+  }
+  // 기본: 단일 로그
+  const single = getZoneLogAtIdx(zone, idx, round);
+  return single ? [single] : [];
 }
 
 // 구역의 특정 round 로그 반환 - zoneLogOrder[zone][round] 오버라이드 우선
@@ -3461,62 +3487,49 @@ function renderTimeline() {
         return true;
       })
       .map(zone => {
-        const zoneWaterLogs = state.logs
-          .filter(l => l.type === '관주' && l.zones && l.zones.includes(zone))
-          .sort((a, b) => a.date.localeCompare(b.date));
-        let displayDate, isActualDate, log;
+        const ABC = ['연수형A','연수형B','연수형C'];
+        const logIdx = ABC.includes(zone) ? idx - 4 : idx - 1;
+        const color = ZONE_COLORS[zone];
+        const label = ZONE_LABELS[zone] || zone;
+
         if (s.round === 1) {
           const planting = (state.zonePlantingDates && state.zonePlantingDates[zone])
             || ZONE_PLANTING[zone] || DEFAULT_PLANTING;
-          displayDate = planting;
-          isActualDate = true;
-          log = null;
-        } else {
-          const ABC = ['연수형A','연수형B','연수형C'];
-          const logIdx = ABC.includes(zone) ? idx - 4 : idx - 1;
-          log = logIdx >= 0 ? getZoneLogAtIdx(zone, logIdx, s.round) : null;
-          displayDate = log ? log.date : null;
-          isActualDate = !!displayDate;
-        }
-        const color = ZONE_COLORS[zone];
-        const label = ZONE_LABELS[zone] || zone;
-        return { zone, color, label, displayDate, isActualDate, log };
-      })
-      .sort((a, b) => {
-        if (a.displayDate && b.displayDate) return a.displayDate.localeCompare(b.displayDate);
-        if (a.displayDate) return -1;
-        if (b.displayDate) return 1;
-        return 0;
-      })
-      .map(({ zone, color, label, displayDate, isActualDate, log }) => {
-        const fLine = fertStr(log ? log.ferts : null);
-        const workLine = log && log.work ? log.work : '';
-        const memoLine = log && log.memo ? log.memo : '';
-        const duration = log && log.zoneDurations && log.zoneDurations[zone]
-          ? log.zoneDurations[zone] + '분'
-          : (log && log.duration ? log.duration + '분' : '');
-        if (isActualDate && displayDate) {
           return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
-              <div style="display:flex;align-items:center;gap:6px">
-                <button onclick="event.stopPropagation();copyFerts(${log ? log.id : 'null'})" style="font-size:0.68rem;padding:2px 6px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer" title="비료 복사">📋</button>
-                <button onclick="event.stopPropagation();openMoveWater(${log ? log.id : 'null'},'${zone}',${s.round})" style="font-size:0.68rem;padding:2px 6px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer" title="차수 이동">🔀</button>
-                <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','${displayDate}')">✓ ${fmtDate(displayDate)}</span>
-              </div>
-            </div>
-            ${workLine ? `<div style="font-size:0.7rem;color:#888;margin-top:2px;padding-left:2px">📝 ${workLine}${duration ? ' · ⏱ '+duration : ''}</div>` : (duration ? `<div style="font-size:0.7rem;color:#888;margin-top:2px;padding-left:2px">⏱ ${duration}</div>` : '')}
-            ${fLine ? `<div style="font-size:0.7rem;color:#555;margin-top:2px;padding-left:2px;line-height:1.7">${fLine}</div>` : ''}
-            ${memoLine ? `<div style="font-size:0.7rem;color:#aaa;margin-top:2px;padding-left:2px">💬 ${memoLine}</div>` : ''}
-          </div>`;
-        } else {
-          return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
-              <span style="font-size:0.78rem;color:#ccc;cursor:pointer" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','')">+ 날짜입력</span>
-            </div>
-          </div>`;
+              <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700">✓ ${fmtDate(planting)}</span>
+            </div></div>`;
         }
+
+        const logs = logIdx >= 0 ? getRoundZoneAllLogs(s.round, zone, logIdx) : [];
+
+        const logRows = logs.map(log => {
+          const fLine = fertStr(log.ferts);
+          const workLine = log.work || '';
+          const memoLine = log.memo || '';
+          const duration = (log.zoneDurations && log.zoneDurations[zone])
+            ? log.zoneDurations[zone] + '분'
+            : (log.duration ? log.duration + '분' : '');
+          return `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px">
+            <div style="display:flex;align-items:center;gap:4px">
+              <button onclick="event.stopPropagation();copyFerts(${log.id})" style="font-size:0.65rem;padding:1px 5px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer">📋</button>
+              <button onclick="event.stopPropagation();openMoveWater(${log.id},'${zone}',${s.round})" style="font-size:0.65rem;padding:1px 5px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer">🔀</button>
+            </div>
+            <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','${log.date}')">✓ ${fmtDate(log.date)}</span>
+          </div>
+          ${workLine ? `<div style="font-size:0.7rem;color:#888;padding-left:2px">📝 ${workLine}${duration ? ' · ⏱ '+duration : ''}</div>` : ''}
+          ${fLine ? `<div style="font-size:0.7rem;color:#555;padding-left:2px;line-height:1.7">${fLine}</div>` : ''}
+          ${memoLine ? `<div style="font-size:0.7rem;color:#aaa;padding-left:2px">💬 ${memoLine}</div>` : ''}`;
+        }).join('<div style="border-top:1px dashed #e8e8e8;margin:4px 0"></div>');
+
+        return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
+            <button onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','')" style="font-size:0.72rem;color:var(--green-mid);background:none;border:1px dashed var(--green-mid);border-radius:5px;padding:1px 7px;cursor:pointer">+ 추가</button>
+          </div>
+          ${logs.length > 0 ? logRows : `<div style="font-size:0.75rem;color:#ccc;margin-top:3px">미기록</div>`}
+        </div>`;
       }).join('');
 
     // 실제 관주 기록에서 제품별 카테고리 인라인 표시
