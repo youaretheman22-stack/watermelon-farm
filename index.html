@@ -1968,25 +1968,64 @@ function renderZoneSchedule(zone) {
 
   const zoneLogs = state.logs
     .filter(l => l.type === '관주' && l.zones && l.zones.includes(zone))
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => a.date.localeCompare(b.date)); // 날짜 오름차순
 
   if (zoneLogs.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="icon">💧</div><p>${ZONE_LABELS[zone]} 구역의 관주 기록이 없어요.</p></div>`;
     return;
   }
 
+  // 각 로그가 어느 차수에 배정되어 있는지 계산
+  const schedule = getWaterSchedule();
+  const pattern = getOrderedPattern();
+  const ABC = ['연수형A','연수형B','연수형C'];
+
+  // round별로 배정된 logId 집합 구성
+  const assignedMap = {}; // logId → roundLabel
+  pattern.forEach((p, pidx) => {
+    if (p.round === 1) return;
+    const orderIdx = pidx;
+    const logIdx = ABC.includes(zone) ? orderIdx - 4 : orderIdx - 1;
+    if (logIdx < 0) return;
+    const key = `${p.round}_${zone}`;
+    const extra = state.roundZoneLogs && state.roundZoneLogs[key];
+    if (extra && extra.length > 0) {
+      extra.forEach(id => { assignedMap[id] = schedule.find(s => s.round === p.round)?.label || `${p.round}차`; });
+    } else {
+      const log = getZoneLogAtIdx(zone, logIdx, p.round);
+      if (log) assignedMap[log.id] = schedule.find(s => s.round === p.round)?.label || `${p.round}차`;
+    }
+  });
+
+  const color = ZONE_COLORS[zone];
+
   container.innerHTML = zoneLogs.map(log => {
     const line = fertStr(log.ferts);
-    return `<div class="log-item" style="border-left-color:${ZONE_COLORS[zone]}">
+    const duration = (log.zoneDurations && log.zoneDurations[zone])
+      ? log.zoneDurations[zone] + '분'
+      : (log.duration ? log.duration + '분' : '');
+    const roundLabel = assignedMap[log.id];
+    const isAssigned = !!roundLabel;
+
+    const roundBadge = isAssigned
+      ? `<span style="font-size:0.72rem;padding:2px 8px;border-radius:10px;background:${color}22;color:${color};font-weight:700;border:1px solid ${color}44">${roundLabel}</span>`
+      : `<span style="font-size:0.72rem;padding:2px 8px;border-radius:10px;background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb">미분류</span>`;
+
+    const assignBtn = !isAssigned
+      ? `<button onclick="openAssignRound(${log.id},'${zone}')" style="font-size:0.72rem;padding:2px 8px;border:1px dashed var(--green-mid);border-radius:6px;background:white;color:var(--green-mid);cursor:pointer">차수 배정</button>`
+      : '';
+
+    return `<div class="log-item" style="border-left-color:${color}">
       <div class="log-header">
         <div class="log-date">${fmtDate(log.date)}</div>
-        <div class="log-type-badge">관주</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${roundBadge}
+          ${assignBtn}
+        </div>
       </div>
-      <div class="log-work">${log.work}</div>
+      <div class="log-work">${log.work || ''}</div>
       ${line ? `<div class="log-fert">${line}</div>` : ''}
-      ${log.zoneDurations && log.zoneDurations[zone]
-        ? `<div class="log-memo">⏱ ${log.zoneDurations[zone]}분</div>`
-        : log.duration ? `<div class="log-memo">⏱ ${log.duration}분</div>` : ''}
+      ${duration ? `<div class="log-memo">⏱ ${duration}</div>` : ''}
       ${log.memo ? `<div class="log-memo">📝 ${log.memo}</div>` : ''}
     </div>`;
   }).join('');
@@ -2579,6 +2618,56 @@ function getZoneLogAtIdx(zone, orderIdx, round) {
   }
   // 기본: 날짜순 인덱스
   return zoneLogs[orderIdx] || null;
+}
+
+// 미분류 기록을 차수에 배정
+function openAssignRound(logId, zone) {
+  logId = Number(logId);
+  const log = state.logs.find(l => l.id === logId);
+  if (!log) return;
+  const schedule = getWaterSchedule();
+  const ABC = ['연수형A','연수형B','연수형C'];
+
+  document.getElementById('move-water-logid').value = logId;
+  document.getElementById('move-water-zone').value = zone;
+  document.getElementById('move-water-fromround').value = 0; // 미분류
+  document.getElementById('move-water-toround').value = '';
+  document.getElementById('move-water-confirm').style.display = 'none';
+  document.getElementById('move-water-ok').style.display = 'none';
+  document.getElementById('move-water-label').innerHTML =
+    `<span style="color:${ZONE_COLORS[zone]};font-weight:700">${ZONE_LABELS[zone]||zone}</span> · ${fmtDate(log.date)} 기록을 배정할 차수 선택:`;
+
+  const options = schedule
+    .filter(s => {
+      if (s.round === 1) return false;
+      if (ABC.includes(zone) && s.round < 5) return false;
+      return true;
+    })
+    .map(s => `<button onclick="selectMoveTarget(${s.round},'${s.label}')"
+      id="move-opt-${s.round}"
+      style="width:100%;text-align:left;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;background:white;cursor:pointer;font-family:Noto Serif KR,serif;font-size:0.85rem">
+      ${s.label}
+    </button>`).join('');
+  document.getElementById('move-water-options').innerHTML = options;
+
+  // 확인 버튼 클릭 시 assignToRound 실행
+  document.getElementById('move-water-ok').onclick = () => {
+    const toRound = Number(document.getElementById('move-water-toround').value);
+    if (!toRound) return;
+    const key = `${toRound}_${zone}`;
+    if (!state.roundZoneLogs) state.roundZoneLogs = {};
+    if (!state.roundZoneLogs[key]) state.roundZoneLogs[key] = [];
+    if (!state.roundZoneLogs[key].includes(logId)) state.roundZoneLogs[key].push(logId);
+    saveToCloud();
+    document.getElementById('move-water-modal').classList.remove('show');
+    renderTimeline();
+    renderZoneStatus();
+    // 구역 탭 갱신
+    const scheduleFilter = state.scheduleFilter;
+    if (scheduleFilter && scheduleFilter !== '전체') renderZoneSchedule(scheduleFilter);
+  };
+
+  document.getElementById('move-water-modal').classList.add('show');
 }
 
 // openRoundEdit
@@ -3511,16 +3600,16 @@ function renderTimeline() {
           const duration = (log.zoneDurations && log.zoneDurations[zone])
             ? log.zoneDurations[zone] + '분'
             : (log.duration ? log.duration + '분' : '');
-          return `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px">
-            <div style="display:flex;align-items:center;gap:4px">
+          return `<div style="margin-top:4px">
+            <div style="display:flex;justify-content:flex-end;align-items:center;gap:4px">
               <button onclick="event.stopPropagation();copyFerts(${log.id})" style="font-size:0.65rem;padding:1px 5px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer">📋</button>
               <button onclick="event.stopPropagation();openMoveWater(${log.id},'${zone}',${s.round})" style="font-size:0.65rem;padding:1px 5px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer">🔀</button>
+              <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','${log.date}')">✓ ${fmtDate(log.date)}</span>
             </div>
-            <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','${log.date}')">✓ ${fmtDate(log.date)}</span>
-          </div>
-          ${workLine ? `<div style="font-size:0.7rem;color:#888;padding-left:2px">📝 ${workLine}${duration ? ' · ⏱ '+duration : ''}</div>` : ''}
-          ${fLine ? `<div style="font-size:0.7rem;color:#555;padding-left:2px;line-height:1.7">${fLine}</div>` : ''}
-          ${memoLine ? `<div style="font-size:0.7rem;color:#aaa;padding-left:2px">💬 ${memoLine}</div>` : ''}`;
+            ${workLine ? `<div style="font-size:0.7rem;color:#888;padding-left:2px">📝 ${workLine}${duration ? ' · ⏱ '+duration : ''}</div>` : ''}
+            ${fLine ? `<div style="font-size:0.7rem;color:#555;padding-left:2px;line-height:1.7">${fLine}</div>` : ''}
+            ${memoLine ? `<div style="font-size:0.7rem;color:#aaa;padding-left:2px">💬 ${memoLine}</div>` : ''}
+          </div>`;
         }).join('<div style="border-top:1px dashed #e8e8e8;margin:4px 0"></div>');
 
         return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
@@ -3528,7 +3617,7 @@ function renderTimeline() {
             <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
             <button onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','')" style="font-size:0.72rem;color:var(--green-mid);background:none;border:1px dashed var(--green-mid);border-radius:5px;padding:1px 7px;cursor:pointer">+ 추가</button>
           </div>
-          ${logs.length > 0 ? logRows : `<div style="font-size:0.75rem;color:#ccc;margin-top:3px">미기록</div>`}
+          ${logs.length > 0 ? logRows : `<div style="font-size:0.75rem;color:#ccc;margin-top:3px;text-align:right">미기록</div>`}
         </div>`;
       }).join('');
 
