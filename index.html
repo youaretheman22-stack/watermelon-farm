@@ -2280,7 +2280,7 @@ function addZoneFert(f) {
   const unitBtns = ['g','kg','ml','L'].map(u =>
     `<button class="unit-btn ${f && (f.unit||'').startsWith(u)?'active':''}" onclick="toggleUnit(this,'${u}')">${u}</button>`).join('');
   const perBtns = ['동당','총량','말'].map(p =>
-    `<button class="per-btn ${f && (f.unit||'')===(p)?'active':''}" onclick="togglePer(this,'${p}')">${p}</button>`).join('');
+    `<button class="per-btn ${f && (f.unit||'').includes(p)?'active':''}" onclick="togglePer(this,'${p}')">${p}</button>`).join('');
   const div = document.createElement('div');
   div.className = 'fertilizer-item';
   div.style.cssText = 'background:var(--paper);border:1px solid var(--border);border-radius:8px;padding:8px;';
