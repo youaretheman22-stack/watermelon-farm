@@ -1323,7 +1323,7 @@
       <div style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
           <label style="font-size:0.8rem;color:var(--ink-light)">📅 관주 날짜</label>
-          <button id="zone-fert-paste-btn" onclick="pasteCopiedFerts()" style="display:none;font-size:0.72rem;color:var(--green-mid);background:none;border:1px solid var(--green-mid);border-radius:6px;padding:2px 8px;cursor:pointer">📋 붙여넣기</button>
+          <button id="zone-fert-paste-btn" onclick="pasteCopiedFerts()" style="font-size:0.72rem;color:#aaa;background:none;border:1px solid #ddd;border-radius:6px;padding:2px 8px;cursor:pointer">📋 붙여넣기</button>
         </div>
         <input type="date" id="zone-date-edit-date" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box;-webkit-appearance:none">
       </div>
@@ -2298,9 +2298,17 @@ function openZoneDateEdit(round, zone, date) {
     : '';
   document.getElementById('zone-date-edit-duration').value = prevDuration;
 
-  // 붙여넣기 버튼 - 복사된 비료 있을 때만 표시
+  // 붙여넣기 버튼 - 복사된 비료 있으면 활성화
   const pasteBtn = document.getElementById('zone-fert-paste-btn');
-  if (pasteBtn) pasteBtn.style.display = (_copiedFerts && _copiedFerts.length) ? '' : 'none';
+  if (pasteBtn) {
+    if (_copiedFerts && _copiedFerts.length) {
+      pasteBtn.style.color = 'var(--green-mid)';
+      pasteBtn.style.borderColor = 'var(--green-mid)';
+    } else {
+      pasteBtn.style.color = '#aaa';
+      pasteBtn.style.borderColor = '#ddd';
+    }
+  }
 
   document.getElementById('zone-date-edit-modal').classList.add('show');
 }
@@ -2520,9 +2528,20 @@ let _copiedFerts = null;
 function copyFerts(logId) {
   if (!logId) return;
   const log = state.logs.find(l => l.id === Number(logId));
-  if (!log || !log.ferts || !log.ferts.length) { alert('복사할 비료 내용이 없어요'); return; }
+  if (!log || !log.ferts || !log.ferts.length) {
+    alert('복사할 비료 내용이 없어요');
+    return;
+  }
   _copiedFerts = JSON.parse(JSON.stringify(log.ferts));
-  alert(`비료 ${_copiedFerts.length}개 복사됨! 날짜 입력 창에서 붙여넣기 하세요`);
+  // 복사된 버튼 시각 피드백
+  document.querySelectorAll('[onclick*="copyFerts(' + logId + ')"]').forEach(btn => {
+    const orig = btn.textContent;
+    btn.textContent = '✅';
+    setTimeout(() => { btn.textContent = orig; }, 1200);
+  });
+  // 붙여넣기 버튼 활성화
+  const pasteBtn = document.getElementById('zone-fert-paste-btn');
+  if (pasteBtn) pasteBtn.style.display = '';
 }
 
 function pasteCopiedFerts() {
