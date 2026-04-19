@@ -512,6 +512,35 @@
     margin-bottom: 8px;
     margin-top: 4px;
   }
+  /* 대분류 폴더 */
+  .category-folder {
+    border: 2px solid #6366f1;
+    border-radius: 14px;
+    margin-bottom: 14px;
+    background: white;
+    overflow: hidden;
+  }
+  .category-folder-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #6366f122;
+    cursor: pointer;
+    user-select: none;
+  }
+  .category-folder-title {
+    flex: 1;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #4338ca;
+    outline: none;
+    border: none;
+    background: transparent;
+    font-family: Noto Serif KR, serif;
+  }
+  .category-folder-title:focus { border-bottom: 1.5px solid #6366f1; }
+  .category-folder-body { padding: 8px; }
   .log-item[draggable] { cursor: grab; }
   .log-item.dragging { opacity: 0.4; }
   .log-item.type-순치기 { border-left-color: #10b981; }
@@ -1090,7 +1119,10 @@
   <!-- 탭: 소독/엽면시비 일지 -->
   <div id="tab-spray" class="tab-content">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px">
-      <button onclick="addSprayFolder()" style="padding:7px 14px;background:white;color:var(--green-mid);border:1.5px solid var(--green-mid);border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 폴더 만들기</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button onclick="addSprayCategory()" style="padding:7px 14px;background:#6366f1;color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 대분류</button>
+        <button onclick="addSprayFolder()" style="padding:7px 14px;background:white;color:var(--green-mid);border:1.5px solid var(--green-mid);border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 폴더 만들기</button>
+      </div>
       <button onclick="openSprayQuickAdd()" style="padding:7px 14px;background:var(--green-mid);color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 빠른입력</button>
     </div>
     <!-- 폴더 목록 -->
@@ -1116,6 +1148,7 @@
       </div>
       <button onclick="openWaterQuickAdd()" style="flex-shrink:0;padding:7px 14px;background:var(--green-mid);color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 빠른입력</button>
       <button onclick="addBlankRound()" style="flex-shrink:0;padding:7px 14px;background:white;color:var(--green-mid);border:1.5px solid var(--green-mid);border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 공백 차수</button>
+      <button onclick="addWaterCategory()" style="flex-shrink:0;padding:7px 14px;background:#6366f1;color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 대분류</button>
     </div>
 
     <!-- 구역별 관주 현황 요약 -->
@@ -1124,12 +1157,12 @@
       <div id="zone-status-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:4px"></div>
     </div>
 
+    <!-- 관주 대분류 -->
+    <div id="water-categories"></div>
+
     <!-- 전체 일정 타임라인 -->
     <div id="schedule-전체">
-      <div class="compare-card">
-        <h3>💧 2026 관주 일정 (작년 패턴 기반)</h3>
-        <div class="timeline" id="water-timeline"></div>
-      </div>
+      <div class="timeline" id="water-timeline"></div>
     </div>
 
     <!-- 구역별 관주 기록 -->
@@ -1447,6 +1480,8 @@ const state = {
   saving: false,
   syncing: false,
   sprayFolders: [],
+  sprayCategories: [], // [{id, name, folderIds:[]}] 소독/엽면 대분류
+  waterCategories: [], // [{id, name, rounds:[]}] 관주 차수 대분류
   roundLabels: {},
   roundOrder: [],    // 차수 순서 [1,2,3,...] - 비어있으면 기본순
   extraRounds: [],   // 추가된 공백 차수 [{round, label, detail, interval}]
@@ -1457,7 +1492,7 @@ const state = {
 // Firebase 클라우드 저장/불러오기
 async function saveToCloud() {
   try {
-    const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [], roundLabels: state.roundLabels || {}, roundOrder: state.roundOrder || [], extraRounds: state.extraRounds || [], zoneLogOrder: state.zoneLogOrder || {}, roundZoneLogs: state.roundZoneLogs || {} };
+    const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [], sprayCategories: state.sprayCategories || [], waterCategories: state.waterCategories || [], roundLabels: state.roundLabels || {}, roundOrder: state.roundOrder || [], extraRounds: state.extraRounds || [], zoneLogOrder: state.zoneLogOrder || {}, roundZoneLogs: state.roundZoneLogs || {} };
     localStorage.setItem('farm_data_2026', JSON.stringify(data));
     if (window.fbSave) {
       await window.fbSave(JSON.stringify(data));
@@ -1486,6 +1521,8 @@ async function loadFromCloud() {
           state.roundDates = data.roundDates || {};
           state.zonePlantingDates = data.zonePlantingDates || {};
           state.sprayFolders = data.sprayFolders || [];
+          state.sprayCategories = data.sprayCategories || [];
+          state.waterCategories = data.waterCategories || [];
           state.roundLabels = data.roundLabels || {};
           state.roundOrder = data.roundOrder || [];
           state.extraRounds = data.extraRounds || [];
@@ -1508,6 +1545,8 @@ async function loadFromCloud() {
         state.roundDates = data.roundDates || {};
         state.zonePlantingDates = data.zonePlantingDates || {};
         state.sprayFolders = data.sprayFolders || [];
+        state.sprayCategories = data.sprayCategories || [];
+        state.waterCategories = data.waterCategories || [];
         state.roundLabels = data.roundLabels || {};
         state.roundOrder = data.roundOrder || [];
         state.extraRounds = data.extraRounds || [];
@@ -2256,13 +2295,12 @@ function makeLogItemHTML(log) {
 }
 
 // 구역별 관주 날짜 수정
-function openZoneDateEdit(round, zone, date) {
+function openZoneDateEdit(round, zone, date, logId) {
   document.getElementById('zone-date-edit-round').value = round;
   document.getElementById('zone-date-edit-zone').value = zone;
   document.getElementById('zone-date-edit-date').value = date;
   const color = ZONE_COLORS[zone] || 'var(--green-mid)';
   const label = ZONE_LABELS[zone] || zone;
-  const isNew = !date; // 날짜 없으면 신규 입력 모드
 
   document.getElementById('zone-date-edit-label').innerHTML =
     `<span style="color:${color};font-weight:700">${label}</span> · ${round}차 관주`;
@@ -2285,20 +2323,24 @@ function openZoneDateEdit(round, zone, date) {
     allLogsEl.innerHTML = '';
   }
 
-  // 비료 입력 목록 초기화 (기존 로그 있으면 불러오기, 없으면 빈칸 1개)
-  const ABC = ['연수형A','연수형B','연수형C'];
-  const orderIdx = getRoundOrderIdx(round);
-  const logIdx = ABC.includes(zone) ? orderIdx - 4 : orderIdx - 1;
-  const existLog = logIdx >= 0 ? getZoneLogAtIdx(zone, logIdx, round) : null;
+  // logId가 있으면 직접 조회, 없으면 인덱스 기반 조회
+  let existLog = null;
+  if (logId) {
+    existLog = state.logs.find(l => l.id === Number(logId)) || null;
+  } else {
+    const ABC = ['연수형A','연수형B','연수형C'];
+    const orderIdx = getRoundOrderIdx(round);
+    const logIdx = ABC.includes(zone) ? orderIdx - 4 : orderIdx - 1;
+    existLog = logIdx >= 0 ? getZoneLogAtIdx(zone, logIdx, round) : null;
+  }
+
   initZoneFertList(existLog ? (existLog.ferts || []) : []);
 
-  // 기존 관주 시간 불러오기
   const prevDuration = existLog
     ? ((existLog.zoneDurations && existLog.zoneDurations[zone]) || existLog.duration || '')
     : '';
   document.getElementById('zone-date-edit-duration').value = prevDuration;
 
-  // 붙여넣기 버튼 - 복사된 비료 있으면 활성화
   const pasteBtn = document.getElementById('zone-fert-paste-btn');
   if (pasteBtn) {
     if (_copiedFerts && _copiedFerts.length) {
@@ -2585,6 +2627,42 @@ function moveRound(round, dir) {
 }
 
 // 공백 차수 추가
+// ── 관주 대분류 ──
+function addWaterCategory() {
+  if (!state.waterCategories) state.waterCategories = [];
+  const n = state.waterCategories.length;
+  const name = n === 0 ? '적과 전' : '적과 후';
+  state.waterCategories.push({ id: 'wc' + Date.now(), name, rounds: [] });
+  saveToCloud();
+  renderTimeline();
+}
+function renameWaterCategory(id, name) {
+  const c = (state.waterCategories||[]).find(c => c.id === id);
+  if (c) { c.name = name; saveToCloud(); }
+}
+function deleteWaterCategory(id) {
+  if (!confirm('대분류를 삭제할까요? 안의 차수는 미분류로 돌아가요.')) return;
+  state.waterCategories = (state.waterCategories||[]).filter(c => c.id !== id);
+  saveToCloud();
+  renderTimeline();
+}
+function addRoundToCategory(catId, round) {
+  round = Number(round);
+  (state.waterCategories||[]).forEach(c => { c.rounds = (c.rounds||[]).filter(r => r !== round); });
+  const cat = (state.waterCategories||[]).find(c => c.id === catId);
+  if (cat) { if (!cat.rounds) cat.rounds = []; if (!cat.rounds.includes(round)) cat.rounds.push(round); }
+  saveToCloud();
+  renderTimeline();
+}
+function toggleWaterCategory(id) {
+  const body = document.getElementById('wcat-body-' + id);
+  const arrow = document.getElementById('wcat-arrow-' + id);
+  if (!body) return;
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? '' : 'none';
+  if (arrow) arrow.textContent = hidden ? '▼' : '▶';
+}
+
 function addBlankRound() {
   const pattern = getOrderedPattern();
   const maxRound = Math.max(...pattern.map(p => p.round));
@@ -2793,44 +2871,47 @@ function renderSprayLogs() {
     .filter(l => l.type === '소독/엽면시비' || l.type === '소독' || l.type === '엽면시비')
     .sort((a,b) => a.date.localeCompare(b.date));
 
-  // 폴더에 속한 logId 집합
   const assignedIds = new Set((state.sprayFolders||[]).flatMap(f => f.logIds||[]));
-  // 미분류
   const unassigned = sprayLogs.filter(l => !assignedIds.has(l.id));
 
-  // 폴더 렌더
   const foldersEl = document.getElementById('spray-folders');
   if (!foldersEl) return;
   foldersEl.innerHTML = '';
-  (state.sprayFolders||[]).forEach(folder => {
-    const folderLogs = (folder.logIds||[])
-      .map(id => sprayLogs.find(l => l.id === id))
-      .filter(Boolean)
-      .sort((a, b) => a.date.localeCompare(b.date)); // 날짜 오래된순 정렬
-    const div = document.createElement('div');
-    div.className = 'spray-folder';
-    div.innerHTML = `
-      <div class="spray-folder-header" onclick="toggleSprayFolder(event,'${folder.id}')">
-        <span id="folder-toggle-${folder.id}" style="font-size:0.8rem;color:#aaa">▼</span>
-        <input class="spray-folder-title" value="${folder.name}"
+
+  // 대분류에 속한 폴더 ID
+  const catFolderIds = new Set((state.sprayCategories||[]).flatMap(c => c.folderIds||[]));
+
+  // 대분류 렌더
+  const cats = state.sprayCategories || [];
+  cats.forEach((cat, catIdx) => {
+    const isLastCat = catIdx === cats.length - 1;
+    const catDiv = document.createElement('div');
+    catDiv.className = 'category-folder';
+    const catFolders = (cat.folderIds||[])
+      .map(id => (state.sprayFolders||[]).find(f => f.id === id))
+      .filter(Boolean);
+    catDiv.innerHTML = `
+      <div class="category-folder-header" onclick="toggleCategoryFolder('${cat.id}')">
+        <span id="cat-arrow-${cat.id}" style="font-size:0.8rem;color:#6366f1">${isLastCat ? '▼' : '▶'}</span>
+        <input class="category-folder-title" value="${cat.name}"
           onclick="event.stopPropagation()"
-          onchange="renameSprayFolder('${folder.id}',this.value)"
-          style="cursor:text">
-        <span style="font-size:0.75rem;color:#aaa;margin-right:6px">${folderLogs.length}건</span>
-        <button onclick="event.stopPropagation();deleteSprayFolder('${folder.id}')"
+          onchange="renameSprayCategory('${cat.id}',this.value)">
+        <span style="font-size:0.72rem;color:#6366f1;margin-right:6px">${catFolders.length}개 폴더</span>
+        <button onclick="event.stopPropagation();deleteSprayCategory('${cat.id}')"
           style="border:none;background:none;color:#e57373;cursor:pointer;font-size:0.85rem;padding:2px 4px">🗑</button>
       </div>
-      <div class="spray-folder-drop" id="folder-drop-${folder.id}"
-        ondragover="onFolderDragOver(event,'${folder.id}')"
-        ondragleave="onFolderDragLeave(event,'${folder.id}')"
-        ondrop="onFolderDrop(event,'${folder.id}')">
-        ${folderLogs.length === 0
-          ? `<div class="spray-folder-empty">여기로 기록을 끌어다 놓으세요</div>`
-          : folderLogs.map(log => makeSprayDraggableItem(log, folder.id)).join('')}
-      </div>`;
-    foldersEl.appendChild(div);
-    // 터치 드롭존 등록
-    setupTouchDropZone(div.querySelector('.spray-folder-drop'), folder.id);
+      <div class="category-folder-body" id="cat-body-${cat.id}" style="${isLastCat ? '' : 'display:none'}"></div>`;
+    foldersEl.appendChild(catDiv);
+    const body = catDiv.querySelector('.category-folder-body');
+    catFolders.forEach((folder, fi) => {
+      const isLastFolder = fi === catFolders.length - 1;
+      renderSprayFolderInto(body, folder, sprayLogs, isLastCat && isLastFolder);
+    });
+  });
+
+  // 대분류 미소속 폴더 렌더
+  (state.sprayFolders||[]).filter(f => !catFolderIds.has(f.id)).forEach(folder => {
+    renderSprayFolderInto(foldersEl, folder, sprayLogs);
   });
 
   // 미분류 렌더
@@ -2846,9 +2927,48 @@ function renderSprayLogs() {
       ondrop="onUnassignedDrop(event)">
       ${unassigned.map(log => makeSprayDraggableItem(log, null)).join('')}
     </div>`;
-  // 미분류 터치 드롭존
   const udrop = unassignedEl.querySelector('#unassigned-drop');
   if (udrop) setupTouchDropZone(udrop, null);
+}
+
+function renderSprayFolderInto(container, folder, sprayLogs, isOpen) {
+  const folderLogs = (folder.logIds||[])
+    .map(id => sprayLogs.find(l => l.id === id))
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const div = document.createElement('div');
+  div.className = 'spray-folder';
+
+  // 폴더를 대분류에 넣는 버튼 목록
+  const catBtns = (state.sprayCategories||[]).map(cat => {
+    const inCat = (cat.folderIds||[]).includes(folder.id);
+    return `<button onclick="event.stopPropagation();addFolderToCategory('${cat.id}','${folder.id}')"
+      style="font-size:0.7rem;padding:2px 7px;border-radius:6px;border:1px solid #6366f1;background:${inCat?'#6366f1':'white'};color:${inCat?'white':'#6366f1'};cursor:pointer"
+      >${cat.name}</button>`;
+  }).join('');
+
+  div.innerHTML = `
+    <div class="spray-folder-header" onclick="toggleSprayFolder(event,'${folder.id}')">
+      <span id="folder-toggle-${folder.id}" style="font-size:0.8rem;color:#aaa">${isOpen ? '▼' : '▶'}</span>
+      <input class="spray-folder-title" value="${folder.name}"
+        onclick="event.stopPropagation()"
+        onchange="renameSprayFolder('${folder.id}',this.value)"
+        style="cursor:text">
+      <span style="font-size:0.75rem;color:#aaa;margin-right:6px">${folderLogs.length}건</span>
+      ${catBtns}
+      <button onclick="event.stopPropagation();deleteSprayFolder('${folder.id}')"
+        style="border:none;background:none;color:#e57373;cursor:pointer;font-size:0.85rem;padding:2px 4px">🗑</button>
+    </div>
+    <div class="spray-folder-drop" id="folder-drop-${folder.id}" style="${isOpen ? '' : 'display:none'}"
+      ondragover="onFolderDragOver(event,'${folder.id}')"
+      ondragleave="onFolderDragLeave(event,'${folder.id}')"
+      ondrop="onFolderDrop(event,'${folder.id}')">
+      ${folderLogs.length === 0
+        ? `<div class="spray-folder-empty">여기로 기록을 끌어다 놓으세요</div>`
+        : folderLogs.map(log => makeSprayDraggableItem(log, folder.id)).join('')}
+    </div>`;
+  container.appendChild(div);
+  setupTouchDropZone(div.querySelector('.spray-folder-drop'), folder.id);
 }
 
 function makeSprayDraggableItem(log, folderId) {
@@ -2976,6 +3096,41 @@ function initSprayTouchDrag() {
 }
 
 // ── 폴더 관리 ──
+// ── 대분류 (소독/엽면) ──
+function addSprayCategory() {
+  if (!state.sprayCategories) state.sprayCategories = [];
+  const name = `${(state.sprayCategories.length + 1) === 1 ? '적과 전' : '적과 후'}`;
+  state.sprayCategories.push({ id: 'sc' + Date.now(), name, folderIds: [] });
+  saveToCloud();
+  renderSprayLogs();
+}
+function renameSprayCategory(id, name) {
+  const c = (state.sprayCategories||[]).find(c => c.id === id);
+  if (c) { c.name = name; saveToCloud(); }
+}
+function deleteSprayCategory(id) {
+  if (!confirm('대분류를 삭제할까요? 안의 폴더는 미분류로 돌아가요.')) return;
+  state.sprayCategories = (state.sprayCategories||[]).filter(c => c.id !== id);
+  saveToCloud();
+  renderSprayLogs();
+}
+function addFolderToCategory(catId, folderId) {
+  // 기존 카테고리에서 제거
+  (state.sprayCategories||[]).forEach(c => { c.folderIds = (c.folderIds||[]).filter(id => id !== folderId); });
+  const cat = (state.sprayCategories||[]).find(c => c.id === catId);
+  if (cat) { if (!cat.folderIds) cat.folderIds = []; cat.folderIds.push(folderId); }
+  saveToCloud();
+  renderSprayLogs();
+}
+function toggleCategoryFolder(id) {
+  const body = document.getElementById('cat-body-' + id);
+  const arrow = document.getElementById('cat-arrow-' + id);
+  if (!body) return;
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? '' : 'none';
+  if (arrow) arrow.textContent = hidden ? '▼' : '▶';
+}
+
 function addSprayFolder() {
   const name = `${(state.sprayFolders||[]).length + 1}차 소독`;
   if (!state.sprayFolders) state.sprayFolders = [];
@@ -3557,6 +3712,120 @@ function renderZoneStatus() {
 }
 
 // 타임라인 렌더링
+function makeTimelineCard(s, idx, today) {
+  const sd = new Date(s.date);
+  sd.setHours(0,0,0,0);
+  const isPast = sd < today;
+  const isToday = sd.getTime() === today.getTime();
+  const dotClass = s.isActual ? 'done' : 'upcoming';
+  const cardClass = s.isActual ? '' : 'upcoming';
+
+  let dateLabel = fmtDate(s.date);
+  let badge = '';
+  if (s.isActual) {
+    badge = ' <span style="color:var(--green-light);font-size:0.75rem">✓ 실제기록</span>';
+  } else if (isPast) {
+    badge = ' <span style="color:var(--melon);font-size:0.75rem">← 지남</span>';
+  } else if (isToday) {
+    badge = ' <span style="color:var(--melon);font-size:0.75rem">← 오늘</span>';
+  } else {
+    badge = ' <span style="color:#aaa;font-size:0.72rem">(예정)</span>';
+  }
+
+  const intervalNote = s.round > 1
+    ? `<span style="font-size:0.72rem;color:#aaa;margin-left:6px">이전 관주 +${s.interval}일</span>`
+    : '';
+
+  // 구역별 관주일 계산
+  const zoneRows = [...ZONES]
+    .filter(zone => {
+      if (['연수형A','연수형B','연수형C'].includes(zone) && s.round < 5) return false;
+      return true;
+    })
+    .map(zone => {
+      const ABC = ['연수형A','연수형B','연수형C'];
+      const logIdx = ABC.includes(zone) ? idx - 4 : idx - 1;
+      const color = ZONE_COLORS[zone];
+      const label = ZONE_LABELS[zone] || zone;
+
+      if (s.round === 1) {
+        const planting = (state.zonePlantingDates && state.zonePlantingDates[zone])
+          || ZONE_PLANTING[zone] || DEFAULT_PLANTING;
+        return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
+            <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700">✓ ${fmtDate(planting)}</span>
+          </div></div>`;
+      }
+
+      const logs = logIdx >= 0 ? getRoundZoneAllLogs(s.round, zone, logIdx) : [];
+
+      const logRows = logs.map(log => {
+        const fLine = fertStr(log.ferts);
+        const workLine = log.work || '';
+        const memoLine = log.memo || '';
+        const duration = (log.zoneDurations && log.zoneDurations[zone])
+          ? log.zoneDurations[zone] + '분'
+          : (log.duration ? log.duration + '분' : '');
+        return `<div style="margin-top:4px">
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:4px">
+            <button onclick="event.stopPropagation();copyFerts(${log.id})" style="font-size:0.65rem;padding:1px 5px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer">📋</button>
+            <button onclick="event.stopPropagation();openMoveWater(${log.id},'${zone}',${s.round})" style="font-size:0.65rem;padding:1px 5px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer">🔀</button>
+            <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','${log.date}',${log.id})">✓ ${fmtDate(log.date)}</span>
+          </div>
+          ${workLine ? `<div style="font-size:0.7rem;color:#888;padding-left:2px">📝 ${workLine}${duration ? ' · ⏱ '+duration : ''}</div>` : ''}
+          ${fLine ? `<div style="font-size:0.7rem;color:#555;padding-left:2px;line-height:1.7">${fLine}</div>` : ''}
+          ${memoLine ? `<div style="font-size:0.7rem;color:#aaa;padding-left:2px">💬 ${memoLine}</div>` : ''}
+        </div>`;
+      }).join('<div style="border-top:1px dashed #e8e8e8;margin:4px 0"></div>');
+
+      return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
+          <button onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','')" style="font-size:0.72rem;color:var(--green-mid);background:none;border:1px dashed var(--green-mid);border-radius:5px;padding:1px 7px;cursor:pointer">+ 추가</button>
+        </div>
+        ${logs.length > 0 ? logRows : `<div style="font-size:0.75rem;color:#ccc;margin-top:3px;text-align:right">미기록</div>`}
+      </div>`;
+    }).join('');
+
+  let actualLog = null;
+  if (s.isActual && s.date) {
+    const sameDayLogs = state.logs.filter(l => l.type === '관주' && l.date === s.date);
+    actualLog = sameDayLogs.find(l => l.ferts && l.ferts.length > 0) || sameDayLogs[0] || null;
+  }
+  const fertBadges = fertStr(actualLog ? actualLog.ferts : null);
+  const customDetail = state.roundDetails && state.roundDetails[s.round];
+  const displayDetail = customDetail || s.detail;
+
+  return `<div class="timeline-item">
+    <div class="timeline-dot ${dotClass}"></div>
+    <div class="timeline-content ${cardClass}" style="cursor:pointer" onclick="toggleRoundDetail(${s.round})">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div class="timeline-date">${dateLabel}${badge}${intervalNote}</div>
+          <div class="timeline-title">${s.label}</div>
+          <div class="timeline-sub" id="round-detail-${s.round}">${fertBadges || displayDetail}</div>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;padding-top:2px">
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <button onclick="event.stopPropagation();moveRound(${s.round},-1)" style="background:none;border:1px solid #e0e0e0;border-radius:4px;padding:1px 5px;font-size:0.65rem;cursor:pointer;color:#aaa;line-height:1">▲</button>
+            <button onclick="event.stopPropagation();moveRound(${s.round},1)" style="background:none;border:1px solid #e0e0e0;border-radius:4px;padding:1px 5px;font-size:0.65rem;cursor:pointer;color:#aaa;line-height:1">▼</button>
+          </div>
+          ${(state.waterCategories&&state.waterCategories.length) ? `<select onclick="event.stopPropagation()" onchange="event.stopPropagation();if(this.value)addRoundToCategory(this.value,${s.round});this.value=''" style="font-size:0.68rem;padding:2px 4px;border:1px solid #6366f144;border-radius:6px;background:white;color:#6366f1;cursor:pointer;max-width:70px">
+            <option value="">📁분류</option>
+            ${(state.waterCategories||[]).map(c=>`<option value="${c.id}" ${(c.rounds||[]).includes(s.round)?'selected':''}>${c.name}</option>`).join('')}
+          </select>` : ''}
+          <button onclick="event.stopPropagation();openRoundEdit(${s.round})" style="background:rgba(45,106,79,0.08);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:var(--green-dark)">✏️</button>
+          <span style="font-size:0.75rem;color:#aaa" id="round-toggle-${s.round}">▼</span>
+        </div>
+      </div>
+      <div id="round-zones-${s.round}" style="display:none;margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0">
+        ${zoneRows}
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderTimeline() {
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -3564,116 +3833,9 @@ function renderTimeline() {
 
   const container = document.getElementById('water-timeline');
   container.innerHTML = schedule.map((s, idx) => {
-    const sd = new Date(s.date);
-    sd.setHours(0,0,0,0);
-    const isPast = sd < today;
-    const isToday = sd.getTime() === today.getTime();
-    const dotClass = s.isActual ? 'done' : 'upcoming';
-    const cardClass = s.isActual ? '' : 'upcoming';
-
-    let dateLabel = fmtDate(s.date);
-    let badge = '';
-    if (s.isActual) {
-      badge = ' <span style="color:var(--green-light);font-size:0.75rem">✓ 실제기록</span>';
-    } else if (isPast) {
-      badge = ' <span style="color:var(--melon);font-size:0.75rem">← 지남</span>';
-    } else if (isToday) {
-      badge = ' <span style="color:var(--melon);font-size:0.75rem">← 오늘</span>';
-    } else {
-      badge = ' <span style="color:#aaa;font-size:0.72rem">(예정)</span>';
-    }
-
-    const intervalNote = s.round > 1
-      ? `<span style="font-size:0.72rem;color:#aaa;margin-left:6px">이전 관주 +${s.interval}일</span>`
-      : '';
-
-    // 구역별 관주일 계산
-    const zoneRows = [...ZONES]
-      .filter(zone => {
-        // 연수형A/B/C는 5차부터만 표시
-        if (['연수형A','연수형B','연수형C'].includes(zone) && s.round < 5) return false;
-        return true;
-      })
-      .map(zone => {
-        const ABC = ['연수형A','연수형B','연수형C'];
-        const logIdx = ABC.includes(zone) ? idx - 4 : idx - 1;
-        const color = ZONE_COLORS[zone];
-        const label = ZONE_LABELS[zone] || zone;
-
-        if (s.round === 1) {
-          const planting = (state.zonePlantingDates && state.zonePlantingDates[zone])
-            || ZONE_PLANTING[zone] || DEFAULT_PLANTING;
-          return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
-              <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700">✓ ${fmtDate(planting)}</span>
-            </div></div>`;
-        }
-
-        const logs = logIdx >= 0 ? getRoundZoneAllLogs(s.round, zone, logIdx) : [];
-
-        const logRows = logs.map(log => {
-          const fLine = fertStr(log.ferts);
-          const workLine = log.work || '';
-          const memoLine = log.memo || '';
-          const duration = (log.zoneDurations && log.zoneDurations[zone])
-            ? log.zoneDurations[zone] + '분'
-            : (log.duration ? log.duration + '분' : '');
-          return `<div style="margin-top:4px">
-            <div style="display:flex;justify-content:flex-end;align-items:center;gap:4px">
-              <button onclick="event.stopPropagation();copyFerts(${log.id})" style="font-size:0.65rem;padding:1px 5px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer">📋</button>
-              <button onclick="event.stopPropagation();openMoveWater(${log.id},'${zone}',${s.round})" style="font-size:0.65rem;padding:1px 5px;border:1px solid #ddd;border-radius:4px;background:white;color:#888;cursor:pointer">🔀</button>
-              <span style="font-size:0.78rem;color:var(--green-dark);font-weight:700;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','${log.date}')">✓ ${fmtDate(log.date)}</span>
-            </div>
-            ${workLine ? `<div style="font-size:0.7rem;color:#888;padding-left:2px">📝 ${workLine}${duration ? ' · ⏱ '+duration : ''}</div>` : ''}
-            ${fLine ? `<div style="font-size:0.7rem;color:#555;padding-left:2px;line-height:1.7">${fLine}</div>` : ''}
-            ${memoLine ? `<div style="font-size:0.7rem;color:#aaa;padding-left:2px">💬 ${memoLine}</div>` : ''}
-          </div>`;
-        }).join('<div style="border-top:1px dashed #e8e8e8;margin:4px 0"></div>');
-
-        return `<div style="padding:5px 0;border-bottom:1px solid #f0f0f0">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="color:${color};font-size:0.78rem;font-weight:600">${label}</span>
-            <button onclick="event.stopPropagation();openZoneDateEdit(${s.round},'${zone}','')" style="font-size:0.72rem;color:var(--green-mid);background:none;border:1px dashed var(--green-mid);border-radius:5px;padding:1px 7px;cursor:pointer">+ 추가</button>
-          </div>
-          ${logs.length > 0 ? logRows : `<div style="font-size:0.75rem;color:#ccc;margin-top:3px;text-align:right">미기록</div>`}
-        </div>`;
-      }).join('');
-
-    // 실제 관주 기록에서 제품별 카테고리 인라인 표시
-    let actualLog = null;
-    if (s.isActual && s.date) {
-      const sameDayLogs = state.logs.filter(l => l.type === '관주' && l.date === s.date);
-      actualLog = sameDayLogs.find(l => l.ferts && l.ferts.length > 0) || sameDayLogs[0] || null;
-    }
-    const fertBadges = fertStr(actualLog ? actualLog.ferts : null);
-    const customDetail = state.roundDetails && state.roundDetails[s.round];
-    const displayDetail = customDetail || s.detail;
-
-    return `<div class="timeline-item">
-      <div class="timeline-dot ${dotClass}"></div>
-      <div class="timeline-content ${cardClass}" style="cursor:pointer" onclick="toggleRoundDetail(${s.round})">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <div style="flex:1;min-width:0">
-            <div class="timeline-date">${dateLabel}${badge}${intervalNote}</div>
-            <div class="timeline-title">${s.label}</div>
-            <div class="timeline-sub" id="round-detail-${s.round}">${fertBadges || displayDetail}</div>
-          </div>
-          <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;padding-top:2px">
-            <div style="display:flex;flex-direction:column;gap:2px">
-              <button onclick="event.stopPropagation();moveRound(${s.round},-1)" style="background:none;border:1px solid #e0e0e0;border-radius:4px;padding:1px 5px;font-size:0.65rem;cursor:pointer;color:#aaa;line-height:1">▲</button>
-              <button onclick="event.stopPropagation();moveRound(${s.round},1)" style="background:none;border:1px solid #e0e0e0;border-radius:4px;padding:1px 5px;font-size:0.65rem;cursor:pointer;color:#aaa;line-height:1">▼</button>
-            </div>
-            <button onclick="event.stopPropagation();openRoundEdit(${s.round})" style="background:rgba(45,106,79,0.08);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:var(--green-dark)">✏️</button>
-            <span style="font-size:0.75rem;color:#aaa" id="round-toggle-${s.round}">▼</span>
-          </div>
-        </div>
-        <div id="round-zones-${s.round}" style="display:none;margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0">
-          ${zoneRows}
-        </div>
-      </div>
-    </div>`;
+    return makeTimelineCard(s, idx, today);
   }).join('');
+
 
   // 열려있던 차수 복원
   openRoundSet.forEach(round => {
@@ -3684,6 +3846,69 @@ function renderTimeline() {
   });
 
   renderZoneStatus();
+  renderWaterCategories(schedule);
+}
+
+// 관주 대분류 렌더
+function renderWaterCategories(schedule) {
+  const wcatEl = document.getElementById('water-categories');
+  if (!wcatEl) return;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // 대분류에 배정된 차수는 타임라인에서 숨김
+  const catRoundSet = new Set((state.waterCategories||[]).flatMap(c => c.rounds||[]));
+  document.querySelectorAll('#water-timeline .timeline-item').forEach(item => {
+    const zoneEl = item.querySelector('[id^="round-zones-"]');
+    if (!zoneEl) return;
+    const r = Number(zoneEl.id.replace('round-zones-', ''));
+    item.style.display = catRoundSet.has(r) ? 'none' : '';
+  });
+
+  if (!state.waterCategories || !state.waterCategories.length) { wcatEl.innerHTML = ''; return; }
+
+  const cats = state.waterCategories || [];
+  wcatEl.innerHTML = cats.map((cat, catIdx) => {
+    const isLastCat = catIdx === cats.length - 1;
+    const catRounds = cat.rounds || [];
+    const catSchedule = schedule.filter(s => catRounds.includes(s.round));
+    const roundCards = catRounds.map((r, ri) => {
+      const isLastRound = ri === catRounds.length - 1;
+      const s = schedule.find(x => x.round === r);
+      const idx = schedule.findIndex(x => x.round === r);
+      if (!s || idx < 0) return '';
+      let card = makeTimelineCard(s, idx, today);
+      // 마지막 대분류의 마지막 차수는 펼침
+      if (isLastCat && isLastRound) {
+        card = card.replace(
+          `id="round-zones-${r}" style="display:none;`,
+          `id="round-zones-${r}" style=";`
+        ).replace(
+          `id="round-toggle-${r}">▼`,
+          `id="round-toggle-${r}">▲`
+        );
+        openRoundSet.add(String(r));
+      }
+      return card;
+    }).filter(Boolean).join('');
+
+    return `<div class="category-folder" style="margin-bottom:14px">
+      <div class="category-folder-header" onclick="toggleWaterCategory('${cat.id}')">
+        <span id="wcat-arrow-${cat.id}" style="font-size:0.8rem;color:#6366f1">${isLastCat ? '▼' : '▶'}</span>
+        <input class="category-folder-title" value="${cat.name}"
+          onclick="event.stopPropagation()"
+          onchange="renameWaterCategory('${cat.id}',this.value)">
+        <span style="font-size:0.72rem;color:#6366f1;margin-right:6px">${catSchedule.length}개 차수</span>
+        <button onclick="event.stopPropagation();deleteWaterCategory('${cat.id}')"
+          style="border:none;background:none;color:#e57373;cursor:pointer;font-size:0.85rem;padding:2px 4px">🗑</button>
+      </div>
+      <div class="category-folder-body" id="wcat-body-${cat.id}" style="${isLastCat ? '' : 'display:none'}">
+        <div class="timeline" style="margin:0">
+          ${roundCards || `<div style="color:#aaa;font-size:0.82rem;padding:8px">아직 배정된 차수가 없어요</div>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // 비교 테이블
