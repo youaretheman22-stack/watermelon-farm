@@ -528,6 +528,7 @@
     background: #6366f122;
     cursor: pointer;
     user-select: none;
+    overflow: hidden;
   }
   .category-folder-title {
     flex: 1;
@@ -549,6 +550,7 @@
 
   /* 소독/엽면 PC 2열 그리드 */
   @media (min-width: 768px) {
+    #zone-status-grid { grid-template-columns: repeat(6, 1fr) !important; }
     #spray-folders .spray-folder-drop:not([style*="display: none"]):not([style*="display:none"]),
     #spray-unassigned > div {
       display: grid;
@@ -908,35 +910,45 @@
   }
 </style>
 
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyBnAD9hl6PfYVnLKmDcThX2429YyR01zGs",
-    authDomain: "watermelonfarming-38add.firebaseapp.com",
-    projectId: "watermelonfarming-38add",
-    storageBucket: "watermelonfarming-38add.firebasestorage.app",
-    messagingSenderId: "288161600267",
-    appId: "1:288161600267:web:8e2c57483be0fb304c880e"
-  };
-  try {
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const docRef = db.collection('farm').doc('logs2026');
-    window.fbSave = async function(data) {
-      await docRef.set({ logs: data });
+  window.firebaseReady = false;
+  function initFirebase() {
+    if (typeof firebase === 'undefined') {
+      console.error('Firebase SDK 로드 실패');
+      window.firebaseReady = false;
+      if (window.appInitPending) { window.appInitPending(); window.appInitPending = null; }
+      return;
+    }
+    const firebaseConfig = {
+      apiKey: "AIzaSyBnAD9hl6PfYVnLKmDcThX2429YyR01zGs",
+      authDomain: "watermelonfarming-38add.firebaseapp.com",
+      projectId: "watermelonfarming-38add",
+      storageBucket: "watermelonfarming-38add.firebasestorage.app",
+      messagingSenderId: "288161600267",
+      appId: "1:288161600267:web:8e2c57483be0fb304c880e"
     };
-    window.fbLoad = async function() {
-      const snap = await docRef.get();
-      if (snap.exists) return snap.data().logs;
-      return null;
-    };
-    window.firebaseReady = true;
-  } catch(e) {
-    console.error('Firebase 초기화 실패:', e);
-    window.firebaseReady = false;
+    try {
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+      const docRef = db.collection('farm').doc('logs2026');
+      window.fbSave = async function(data) {
+        await docRef.set({ logs: data });
+      };
+      window.fbLoad = async function() {
+        const snap = await docRef.get();
+        if (snap.exists) return snap.data().logs;
+        return null;
+      };
+      window.firebaseReady = true;
+    } catch(e) {
+      console.error('Firebase 초기화 실패:', e);
+      window.firebaseReady = false;
+    }
+    if (window.appInitPending) { window.appInitPending(); window.appInitPending = null; }
   }
 </script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js" onload="initFirebase()" onerror="initFirebase()"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script>
     // 핀치줌만 차단, 스크롤은 허용
     document.addEventListener('touchmove', function(e) {
@@ -953,10 +965,12 @@
 <body>
 <div class="container">
   <header>
-    <div class="year-badge">2026 SEASON</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="year-badge">2026 SEASON</div>
+      <button onclick="downloadHTML()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.4);color:white;border-radius:8px;padding:6px 12px;font-size:0.78rem;cursor:pointer;font-family:Noto Serif KR,serif">📥 파일 저장</button>
+    </div>
     <h1>수박 영농일지</h1>
     <p class="subtitle">정식일: 2026년 2월 25~26일 &nbsp;|&nbsp; 비닐하우스 재배</p>
-
   </header>
 
   <!-- 요약 카드 -->
@@ -1154,7 +1168,7 @@
     <!-- 구역별 관주 현황 요약 -->
     <div class="compare-card" style="margin-bottom:16px">
       <h3>🗺 구역별 관주 현황</h3>
-      <div id="zone-status-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:4px"></div>
+      <div id="zone-status-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px"></div>
     </div>
 
     <!-- 관주 대분류 -->
@@ -1803,6 +1817,20 @@ const compareData = [
 ];
 
 // 초기화
+// 파일 저장 (GitHub 업로드용)
+function downloadHTML() {
+  const html = document.documentElement.outerHTML;
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '수박_영농일지_2026.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 async function init() {
   const today = new Date();
   document.getElementById('input-date').value = today.toISOString().split('T')[0];
@@ -2896,7 +2924,7 @@ function renderSprayLogs() {
         <input class="category-folder-title" value="${cat.name}"
           onclick="event.stopPropagation()"
           onchange="renameSprayCategory('${cat.id}',this.value)">
-        <span style="font-size:0.72rem;color:#6366f1;margin-right:6px">${catFolders.length}개 폴더</span>
+        <span style="font-size:0.72rem;color:#6366f1;margin-right:6px;white-space:nowrap;flex-shrink:0">${catFolders.length}개 폴더</span>
         <button onclick="event.stopPropagation();deleteSprayCategory('${cat.id}')"
           style="border:none;background:none;color:#e57373;cursor:pointer;font-size:0.85rem;padding:2px 4px">🗑</button>
       </div>
@@ -3898,7 +3926,7 @@ function renderWaterCategories(schedule) {
         <input class="category-folder-title" value="${cat.name}"
           onclick="event.stopPropagation()"
           onchange="renameWaterCategory('${cat.id}',this.value)">
-        <span style="font-size:0.72rem;color:#6366f1;margin-right:6px">${catSchedule.length}개 차수</span>
+        <span style="font-size:0.72rem;color:#6366f1;margin-right:6px;white-space:nowrap;flex-shrink:0">${catSchedule.length}개 차수</span>
         <button onclick="event.stopPropagation();deleteWaterCategory('${cat.id}')"
           style="border:none;background:none;color:#e57373;cursor:pointer;font-size:0.85rem;padding:2px 4px">🗑</button>
       </div>
