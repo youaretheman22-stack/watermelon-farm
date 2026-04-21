@@ -1147,22 +1147,24 @@
 
   <!-- 탭: 관주 일정 -->
   <div id="tab-schedule" class="tab-content">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px">
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="zone-btn active" onclick="filterSchedule(this,'전체')">📋 전체 일정</button>
-        <button class="zone-btn" onclick="filterSchedule(this,'집앞')" style="border-color:#6366f1">🏠 집앞3</button>
-        <button class="zone-btn" onclick="filterSchedule(this,'못자리')" style="border-color:#0ea5e9">💧 못자리옆3</button>
-        <button class="zone-btn" onclick="filterSchedule(this,'연수형네앞')" style="border-color:#f59e0b">🌾 연수형네앞20</button>
-        <button class="zone-btn" onclick="filterSchedule(this,'연수형A')" style="border-color:#f59e0b">🌾 연수형A</button>
-        <button class="zone-btn" onclick="filterSchedule(this,'연수형B')" style="border-color:#f97316">🌾 연수형B</button>
-        <button class="zone-btn" onclick="filterSchedule(this,'연수형C')" style="border-color:#eab308">🌾 연수형C</button>
-        <button class="zone-btn" onclick="filterSchedule(this,'짧은하우스')" style="border-color:#10b981">🏗 짧은하우스6</button>
-        <button class="zone-btn" onclick="filterSchedule(this,'말장')" style="border-color:#e76f51">🌿 말장8</button>
-        <button class="zone-btn" onclick="filterSchedule(this,'말장NEW1')" style="border-color:#d946ef">🆕 말장NEW1</button>
-      </div>
-      <button onclick="openWaterQuickAdd()" style="flex-shrink:0;padding:7px 14px;background:var(--green-mid);color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 빠른입력</button>
-      <button onclick="addBlankRound()" style="flex-shrink:0;padding:7px 14px;background:white;color:var(--green-mid);border:1.5px solid var(--green-mid);border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 공백 차수</button>
-      <button onclick="addWaterCategory()" style="flex-shrink:0;padding:7px 14px;background:#6366f1;color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 대분류</button>
+    <!-- 구역 필터 버튼 -->
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+      <button class="zone-btn active" onclick="filterSchedule(this,'전체')" style="font-size:0.75rem;padding:5px 8px">📋 전체</button>
+      <button class="zone-btn" onclick="filterSchedule(this,'집앞')" style="border-color:#6366f1;font-size:0.75rem;padding:5px 8px">🏠 집앞</button>
+      <button class="zone-btn" onclick="filterSchedule(this,'못자리')" style="border-color:#0ea5e9;font-size:0.75rem;padding:5px 8px">💧 못자리</button>
+      <button class="zone-btn" onclick="filterSchedule(this,'연수형네앞')" style="border-color:#f59e0b;font-size:0.75rem;padding:5px 8px">🌾 연수형20</button>
+      <button class="zone-btn" onclick="filterSchedule(this,'연수형A')" style="border-color:#f59e0b;font-size:0.75rem;padding:5px 8px">🌾 연수A</button>
+      <button class="zone-btn" onclick="filterSchedule(this,'연수형B')" style="border-color:#f97316;font-size:0.75rem;padding:5px 8px">🌾 연수B</button>
+      <button class="zone-btn" onclick="filterSchedule(this,'연수형C')" style="border-color:#eab308;font-size:0.75rem;padding:5px 8px">🌾 연수C</button>
+      <button class="zone-btn" onclick="filterSchedule(this,'짧은하우스')" style="border-color:#10b981;font-size:0.75rem;padding:5px 8px">🏗 짧은</button>
+      <button class="zone-btn" onclick="filterSchedule(this,'말장')" style="border-color:#e76f51;font-size:0.75rem;padding:5px 8px">🌿 말장</button>
+      <button class="zone-btn" onclick="filterSchedule(this,'말장NEW1')" style="border-color:#d946ef;font-size:0.75rem;padding:5px 8px">🆕 말장N</button>
+    </div>
+    <!-- 액션 버튼 -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      <button onclick="openWaterQuickAdd()" style="padding:7px 14px;background:var(--green-mid);color:white;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 빠른입력</button>
+      <button onclick="addBlankRound()" style="padding:7px 14px;background:white;color:var(--green-mid);border:1.5px solid var(--green-mid);border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 공백 차수</button>
+      <button onclick="addWaterCategory()" style="padding:7px 14px;background:#6366f1;color:white;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:Noto Serif KR,serif">+ 대분류</button>
     </div>
 
     <!-- 구역별 관주 현황 요약 -->
