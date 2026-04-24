@@ -2331,7 +2331,8 @@ function makeLogItemHTML(log) {
 function openZoneDateEdit(round, zone, date, logId) {
   document.getElementById('zone-date-edit-round').value = round;
   document.getElementById('zone-date-edit-zone').value = zone;
-  document.getElementById('zone-date-edit-date').value = date;
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('zone-date-edit-date').value = date || today;
   const color = ZONE_COLORS[zone] || 'var(--green-mid)';
   const label = ZONE_LABELS[zone] || zone;
 
