@@ -975,6 +975,7 @@
         <span style="font-size:0.72rem;color:rgba(255,255,255,0.8);font-family:DM Mono,monospace;background:rgba(255,255,255,0.15);padding:2px 7px;border-radius:10px">v1.0.1</span>
       </div>
       <button onclick="downloadHTML()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.4);color:white;border-radius:8px;padding:6px 12px;font-size:0.78rem;cursor:pointer;font-family:Noto Serif KR,serif">📥 파일 저장</button>
+      <button onclick="exportData()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.4);color:white;border-radius:8px;padding:6px 12px;font-size:0.78rem;cursor:pointer;font-family:Noto Serif KR,serif">📤 데이터</button>
     </div>
     <h1>수박 영농일지</h1>
     <p class="subtitle">정식일: 2026년 2월 25~26일 &nbsp;|&nbsp; 비닐하우스 재배</p>
@@ -1840,6 +1841,25 @@ function downloadHTML() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function exportData() {
+  const data = localStorage.getItem('farm_data_2026');
+  if (!data) { alert('저장된 데이터가 없어요'); return; }
+  // 모달로 데이터 표시
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999;display:flex;flex-direction:column;padding:20px;box-sizing:border-box';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;padding:16px;flex:1;display:flex;flex-direction:column;max-height:100%">
+      <div style="font-weight:700;font-size:1rem;margin-bottom:8px">📤 데이터 내보내기</div>
+      <div style="font-size:0.8rem;color:#888;margin-bottom:8px">아래 텍스트 전체 선택 후 복사해서 Claude에게 전달하세요</div>
+      <textarea readonly style="flex:1;font-size:0.7rem;border:1px solid #ddd;border-radius:8px;padding:8px;resize:none;word-break:break-all">${data}</textarea>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onclick="this.closest('div').closest('div').parentElement.remove()" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;background:white;font-size:0.9rem;cursor:pointer">닫기</button>
+        <button onclick="navigator.clipboard&&navigator.clipboard.writeText(document.querySelector('textarea').value).then(()=>alert('복사됐어요!'))" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--green-mid);color:white;font-size:0.9rem;cursor:pointer;font-weight:700">📋 복사</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 async function init() {
