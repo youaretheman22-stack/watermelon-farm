@@ -912,7 +912,10 @@
 
 <script>
   window.firebaseReady = false;
-  function initFirebase() {
+  window._fbSdkLoaded = 0;
+  function onFirebaseSdkLoaded() {
+    window._fbSdkLoaded++;
+    if (window._fbSdkLoaded < 2) return; // app + firestore 둘 다 로드 기다림
     if (typeof firebase === 'undefined') {
       console.error('Firebase SDK 로드 실패');
       window.firebaseReady = false;
@@ -940,6 +943,7 @@
         return null;
       };
       window.firebaseReady = true;
+      console.log('✅ Firebase 초기화 성공');
     } catch(e) {
       console.error('Firebase 초기화 실패:', e);
       window.firebaseReady = false;
@@ -947,8 +951,8 @@
     if (window.appInitPending) { window.appInitPending(); window.appInitPending = null; }
   }
 </script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js" onload="initFirebase()" onerror="initFirebase()"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js" onload="onFirebaseSdkLoaded()" onerror="onFirebaseSdkLoaded()"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js" onload="onFirebaseSdkLoaded()" onerror="onFirebaseSdkLoaded()"></script>
   <script>
     // 핀치줌만 차단, 스크롤은 허용
     document.addEventListener('touchmove', function(e) {
@@ -1512,16 +1516,18 @@ const state = {
 async function saveToCloud() {
   try {
     const data = { logs: state.logs, nextWaterDetail: state.nextWaterDetail || '', roundDetails: state.roundDetails || {}, roundDates: state.roundDates || {}, zonePlantingDates: state.zonePlantingDates || {}, sprayFolders: state.sprayFolders || [], sprayCategories: state.sprayCategories || [], waterCategories: state.waterCategories || [], roundLabels: state.roundLabels || {}, roundOrder: state.roundOrder || [], extraRounds: state.extraRounds || [], zoneLogOrder: state.zoneLogOrder || {}, roundZoneLogs: state.roundZoneLogs || {} };
-    localStorage.setItem('farm_data_2026', JSON.stringify(data));
+    const json = JSON.stringify(data);
+    const sizeKB = Math.round(json.length / 1024);
+    localStorage.setItem('farm_data_2026', json);
     if (window.fbSave) {
-      await window.fbSave(JSON.stringify(data));
-      console.log('✅ Firebase 저장 성공');
+      await window.fbSave(json);
+      console.log(`✅ Firebase 저장 성공 (${sizeKB}KB)`);
     } else {
       console.warn('⚠️ fbSave 없음 - Firebase 미연결');
     }
   } catch(e) {
     console.error('❌ 저장 실패:', e);
-    alert('저장 실패: ' + e.message);
+    alert('저장 실패: ' + e.message + '\n\n데이터가 저장되지 않았습니다. 네트워크 연결을 확인해주세요.');
   }
 }
 
@@ -4036,7 +4042,7 @@ if (window.firebaseReady) {
   init();
 } else {
   window.appInitPending = init;
-  setTimeout(() => { if (!window.appInitPending) return; init(); }, 3000);
+  setTimeout(() => { if (window.appInitPending) { init(); window.appInitPending = null; } }, 5000);
 }
 
 // 이벤트 위임으로 삭제 버튼 처리 (모바일 대응)
