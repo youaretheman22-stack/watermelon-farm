@@ -1296,6 +1296,13 @@
     </div>
 
     <div style="margin-bottom:12px">
+      <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">🔢 차수 배정 <span style="color:#aaa;font-weight:400">(선택)</span></label>
+      <select id="water-quick-round" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box;background:white">
+        <option value="">배정 안 함</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:12px">
       <label style="font-size:0.8rem;color:var(--ink-light);display:block;margin-bottom:4px">📝 작업내용</label>
       <input type="text" id="water-quick-work" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Noto Serif KR,serif;font-size:0.9rem;box-sizing:border-box">
     </div>
@@ -3261,6 +3268,15 @@ function openWaterQuickAdd() {
   document.getElementById('water-quick-work').value = last ? (last.work||'관주') : '관주';
   document.getElementById('water-quick-memo').value = last ? (last.memo||'') : '';
 
+  // 차수 선택 옵션 채우기
+  const schedule = getWaterSchedule();
+  const roundSel = document.getElementById('water-quick-round');
+  roundSel.innerHTML = '<option value="">배정 안 함</option>' +
+    schedule.filter(s => s.round > 1).map(s =>
+      `<option value="${s.round}">${s.label}</option>`
+    ).join('');
+  roundSel.value = '';
+
   const fertList = document.getElementById('water-quick-fert-list');
   fertList.innerHTML = '';
   const ferts = last && last.ferts ? last.ferts : [];
@@ -3328,11 +3344,23 @@ function saveWaterQuickAdd() {
     if (name) ferts.push({ name, amount, unit, category });
   });
 
+  const newId = Date.now();
   state.logs.push({
-    id: Date.now(), date, type: '관주',
+    id: newId, date, type: '관주',
     zones, work, workers: '', zoneDurations: {}, ferts, memo
   });
   state.logs.sort((a,b) => a.date.localeCompare(b.date));
+
+  // 차수 배정
+  const round = parseInt(document.getElementById('water-quick-round').value);
+  if (round) {
+    if (!state.roundZoneLogs) state.roundZoneLogs = {};
+    zones.forEach(zone => {
+      const key = `${round}_${zone}`;
+      if (!state.roundZoneLogs[key]) state.roundZoneLogs[key] = [];
+      if (!state.roundZoneLogs[key].includes(newId)) state.roundZoneLogs[key].push(newId);
+    });
+  }
 
   saveToCloud();
   closeWaterQuickAdd();
