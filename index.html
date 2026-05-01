@@ -2420,17 +2420,28 @@ function deleteZoneLog(logId, zone) {
   if (!log) return;
   const msg = `${fmtDate(log.date)} 관주 기록을 삭제하시겠습니까?`;
   if (!confirm(msg)) return;
+
+  // roundZoneLogs에서 해당 logId 하나만 제거 (중복이 있어도 첫 번째만)
+  if (state.roundZoneLogs) {
+    Object.keys(state.roundZoneLogs).forEach(key => {
+      const arr = state.roundZoneLogs[key];
+      if (!Array.isArray(arr)) return;
+      const idx = arr.indexOf(logId);
+      if (idx !== -1) {
+        arr.splice(idx, 1);
+        if (arr.length === 0) delete state.roundZoneLogs[key];
+      }
+    });
+  }
+
   if (log.zones.length === 1) {
-    // 이 구역만 있으면 로그 완전 삭제
     state.logs = state.logs.filter(l => l.id !== logId);
   } else {
-    // 여러 구역이면 이 구역만 제거
     log.zones = log.zones.filter(z => z !== zone);
   }
   saveToCloud();
   renderTimeline();
   renderZoneStatus();
-  // 모달 로그 목록 갱신
   const round = parseInt(document.getElementById('zone-date-edit-round').value);
   openZoneDateEdit(round, zone, '');
 }
@@ -3803,20 +3814,6 @@ function makeTimelineCard(s, idx, today) {
   const cardClass = s.isActual ? '' : 'upcoming';
 
   let dateLabel = fmtDate(s.date);
-  let badge = '';
-  if (s.isActual) {
-    badge = ' <span style="color:var(--green-light);font-size:0.75rem">✓ 실제기록</span>';
-  } else if (isPast) {
-    badge = ' <span style="color:var(--melon);font-size:0.75rem">← 지남</span>';
-  } else if (isToday) {
-    badge = ' <span style="color:var(--melon);font-size:0.75rem">← 오늘</span>';
-  } else {
-    badge = ' <span style="color:#aaa;font-size:0.72rem">(예정)</span>';
-  }
-
-  const intervalNote = s.round > 1
-    ? `<span style="font-size:0.72rem;color:#aaa;margin-left:6px">이전 관주 +${s.interval}일</span>`
-    : '';
 
   // 구역별 관주일 계산
   const zoneRows = [...ZONES]
@@ -3884,9 +3881,9 @@ function makeTimelineCard(s, idx, today) {
     <div class="timeline-content ${cardClass}" style="cursor:default">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="flex:1;min-width:0">
-          <div class="timeline-date">${dateLabel}${badge}${intervalNote}</div>
+          <div class="timeline-date">${dateLabel}</div>
           <div class="timeline-title">${s.label}</div>
-          <div class="timeline-sub" id="round-detail-${s.round}">${fertBadges || displayDetail}</div>
+          <div class="timeline-sub" id="round-detail-${s.round}">${displayDetail}</div>
         </div>
         <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;padding-top:2px">
           <div style="display:flex;flex-direction:column;gap:2px">
