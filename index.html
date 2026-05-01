@@ -1019,7 +1019,6 @@
     <button class="tab-btn" onclick="switchTab(event,'logs')"><span class="tab-icon">📋</span><span class="tab-label">작업 일지</span></button>
     <button class="tab-btn" onclick="switchTab(event,'spray')"><span class="tab-icon">🧪</span><span class="tab-label">소독/엽면</span></button>
     <button class="tab-btn" onclick="switchTab(event,'schedule')"><span class="tab-icon">💧</span><span class="tab-label">관주 일정</span></button>
-    <button class="tab-btn" onclick="switchTab(event,'compare')"><span class="tab-icon">📊</span><span class="tab-label">작년 비교</span></button>
   </div>
 
   <!-- 탭: 기록 입력 -->
@@ -1199,27 +1198,6 @@
   </div>
 
   <!-- 탭: 작년 비교 -->
-  <div id="tab-compare" class="tab-content">
-    <div class="compare-card">
-      <h3>📊 작년(2025) vs 올해(2026) 관주 비교</h3>
-      <table class="compare-table">
-        <thead>
-          <tr>
-            <th>차수</th>
-            <th>2025년</th>
-            <th>2026년 (예정)</th>
-            <th>비료/제품</th>
-          </tr>
-        </thead>
-        <tbody id="compare-tbody"></tbody>
-      </table>
-    </div>
-    <div class="compare-card">
-      <h3>📝 작년 주요 기록 요약</h3>
-      <div class="log-list" id="last-year-list"></div>
-    </div>
-  </div>
-</div>
 
 <!-- 수정 모달 -->
 <div class="modal-overlay" id="edit-modal" style="align-items:flex-start;padding-top:20px;overflow-y:auto">
@@ -1678,23 +1656,6 @@ const ZONE_LABELS = {
 };
 
 // 작년 데이터
-const lastYearData = [
-  { date: '2025-02-26', type: '정식', work: '수박 정식 19동 + 1/2 6동', workers: '아줌마 7, 외국인 2, 아저씨 2' },
-  { date: '2025-02-27', type: '정식', work: '수박 정식 15동', workers: '아줌마 6, 아저씨 2, 외국인 2' },
-  { date: '2025-03-07', type: '관주', work: '19동 호박밭 관주', fert: '제네시스 1L/동, 황산가리 500g/동' },
-  { date: '2025-03-08', type: '관주', work: '나머지 18동 관주', fert: '황산가리 + 제네시스' },
-  { date: '2025-03-20', type: '관주', work: '19동 관주', fert: '만세형통 500ml, 아미노맥스 2L' },
-  { date: '2025-03-22', type: '관주', work: '15동 관주', fert: '' },
-  { date: '2025-03-29', type: '관주', work: '관주 19동', fert: '3-1-1 비료 500g/동, 프리미엄 아미노 3통 30kg' },
-  { date: '2025-03-31', type: '관주', work: '못자리+짧은하우스 관주', fert: 'MKP 0-40-40 600g, 가야칼 500ml, 아미노산' },
-  { date: '2025-04-01', type: '관주', work: '말장 8동', fert: '0-40-40 960g, 가야칼 770ml' },
-  { date: '2025-04-15', type: '관주', work: '못자리+짧은하우스 관주', fert: 'MKP 0-40-40, 가야칼, 프리미엄아미노' },
-  { date: '2025-04-18', type: '관주', work: '포도밭+호박밭 12동 수정후 1차관주', fert: 'axcel 0-40-40, 가야칼, 프리미엄아미노 — 1시간' },
-  { date: '2025-04-20', type: '관주', work: '못자리+짧은하우스 수정후 2차관주', fert: '퍼티케어 15-5-35, 가야칼, 프리미엄아미노 — 30분' },
-];
-
-// 관주 패턴 정의 (작년 간격 기반)
-// anchor: 기준이 되는 관주 차수 (0=정식일), interval: 이전 관주로부터 며칠 후
 // 구역별 정식일 (기본은 2026-02-25, 다른 경우만 명시)
 const ZONE_PLANTING = {
   '말장NEW1': '2026-03-09',
@@ -1719,15 +1680,13 @@ function getOrderedPattern() {
   if (!order.length) return base;
   const map = {};
   base.forEach(p => { map[p.round] = p; });
-  const ordered = order.map(r => map[r]).filter(Boolean);
-  // order에 없는 항목은 뒤에 추가
+  const ordered = order.filter(r => map[r]).map(r => map[r]);
   base.forEach(p => { if (!order.includes(p.round)) ordered.push(p); });
   return ordered;
 }
 
 // 실제 관주 기록 기반으로 일정 동적 계산
 function calcWaterSchedule(zone) {
-  // 구역별 정식일 오버라이드 반영
   let plantingDate;
   if (zone) {
     plantingDate = (state.zonePlantingDates && state.zonePlantingDates[zone])
@@ -1736,16 +1695,13 @@ function calcWaterSchedule(zone) {
     plantingDate = DEFAULT_PLANTING;
   }
 
-  // 구역별 관주 기록 횟수 순서로 매칭 (날짜순 N번째 = N차)
-  let roundDates; // 인덱스 0 = 2차, 1 = 3차 ...
-
+  let roundDates;
   if (zone) {
     roundDates = state.logs
       .filter(l => l.type === '관주' && l.zones && l.zones.includes(zone))
       .sort((a, b) => a.date.localeCompare(b.date))
       .map(l => l.date);
   } else {
-    // 전체: 구역별 N번째 날짜 수집 후 차수별 가장 이른 날짜를 대표로
     const perZone = {};
     ZONES.forEach(z => {
       perZone[z] = state.logs
@@ -1758,7 +1714,7 @@ function calcWaterSchedule(zone) {
     const pat = getOrderedPattern();
     for (let i = 0; i < pat.length - 1; i++) {
       const datesForRound = ZONES.map(z => {
-        const idx = ABC_ZONES.includes(z) ? i - 3 : i; // ABC는 5차(i=3)부터 시작 → index 0
+        const idx = ABC_ZONES.includes(z) ? i - 3 : i;
         return idx >= 0 ? perZone[z][idx] : undefined;
       }).filter(Boolean);
       if (datesForRound.length > 0) {
@@ -1778,7 +1734,7 @@ function calcWaterSchedule(zone) {
     if (p.intervalFrom === 'planting') {
       expectedDate = addDays(plantingDate, p.interval);
     } else {
-      expectedDate = addDays(prevDate, p.interval);
+      expectedDate = addDays(prevDate, p.interval || 7);
     }
 
     let actual, isActual;
@@ -1790,7 +1746,6 @@ function calcWaterSchedule(zone) {
         actual = state.roundDates[p.round];
         isActual = true;
       } else {
-        // i는 pattern 순서 기준 인덱스, 1차(i=0) 제외하면 roundDates 인덱스 = i-1
         actual = roundDates[i - 1] || null;
         isActual = !!actual;
       }
@@ -1881,8 +1836,6 @@ async function init() {
   renderSprayLogs();
   renderTimeline();
   renderZoneStatus();
-  renderCompare();
-  renderLastYear();
   updateZoneSelectorVisibility();
   initSprayTouchDrag();
 }
@@ -2979,8 +2932,12 @@ function renderSprayLogs() {
           onclick="event.stopPropagation()"
           onchange="renameSprayCategory('${cat.id}',this.value)">
         <span style="font-size:0.72rem;color:#6366f1;margin-right:6px;white-space:nowrap;flex-shrink:0">${catFolders.length}개 폴더</span>
+        <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0" onclick="event.stopPropagation()">
+          <button onclick="moveSprayCategory('${cat.id}',-1)" style="border:1px solid #ddd;background:white;border-radius:3px;padding:1px 5px;font-size:0.6rem;cursor:pointer;color:#888;line-height:1">▲</button>
+          <button onclick="moveSprayCategory('${cat.id}',1)" style="border:1px solid #ddd;background:white;border-radius:3px;padding:1px 5px;font-size:0.6rem;cursor:pointer;color:#888;line-height:1">▼</button>
+        </div>
         <button onclick="event.stopPropagation();deleteSprayCategory('${cat.id}')"
-          style="border:none;background:none;color:#e57373;cursor:pointer;font-size:0.85rem;padding:2px 4px">🗑</button>
+          style="border:none;background:none;color:#e57373;cursor:pointer;font-size:0.85rem;padding:2px 4px;flex-shrink:0">🗑</button>
       </div>
       <div class="category-folder-body" id="cat-body-${cat.id}" style="${isLastCat ? '' : 'display:none'}"></div>`;
     foldersEl.appendChild(catDiv);
@@ -3178,6 +3135,28 @@ function initSprayTouchDrag() {
 }
 
 // ── 폴더 관리 ──
+function moveSprayCategory(id, dir) {
+  const cats = state.sprayCategories || [];
+  const idx = cats.findIndex(c => c.id === id);
+  if (idx < 0) return;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= cats.length) return;
+  [cats[idx], cats[newIdx]] = [cats[newIdx], cats[idx]];
+  saveToCloud();
+  renderSprayLogs();
+}
+
+function moveWaterCategory(id, dir) {
+  const cats = state.waterCategories || [];
+  const idx = cats.findIndex(c => c.id === id);
+  if (idx < 0) return;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= cats.length) return;
+  [cats[idx], cats[newIdx]] = [cats[newIdx], cats[idx]];
+  saveToCloud();
+  renderTimeline();
+}
+
 // ── 대분류 (소독/엽면) ──
 function addSprayCategory() {
   if (!state.sprayCategories) state.sprayCategories = [];
@@ -3935,7 +3914,24 @@ function renderTimeline() {
   const schedule = getWaterSchedule();
 
   const container = document.getElementById('water-timeline');
-  container.innerHTML = schedule.map((s, idx) => {
+  container.innerHTML = schedule
+    .filter(s => {
+      // 실제 기록 있거나, extraRounds에 있는 차수만 표시
+      if (s.isActual) return true;
+      if (s.round === 1) return true;
+      const isExtra = (state.extraRounds || []).find(e => e.round === s.round);
+      if (isExtra) return true;
+      // roundDates에 명시된 차수도 표시
+      if (state.roundDates && state.roundDates[s.round]) return true;
+      // roundZoneLogs에 배정된 차수도 표시
+      const hasZoneLogs = Object.keys(state.roundZoneLogs || {}).some(k => parseInt(k) === s.round);
+      if (hasZoneLogs) return true;
+      // waterCategories에 배정된 차수도 표시
+      const inCat = (state.waterCategories || []).some(c => (c.rounds||[]).includes(s.round));
+      if (inCat) return true;
+      return false;
+    })
+    .map((s, idx) => {
     return makeTimelineCard(s, idx, today);
   }).join('');
 
@@ -4002,8 +3998,12 @@ function renderWaterCategories(schedule) {
           onclick="event.stopPropagation()"
           onchange="renameWaterCategory('${cat.id}',this.value)">
         <span style="font-size:0.72rem;color:#6366f1;margin-right:6px;white-space:nowrap;flex-shrink:0">${catSchedule.length}개 차수</span>
+        <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0" onclick="event.stopPropagation()">
+          <button onclick="moveWaterCategory('${cat.id}',-1)" style="border:1px solid #ddd;background:white;border-radius:3px;padding:1px 5px;font-size:0.6rem;cursor:pointer;color:#888;line-height:1">▲</button>
+          <button onclick="moveWaterCategory('${cat.id}',1)" style="border:1px solid #ddd;background:white;border-radius:3px;padding:1px 5px;font-size:0.6rem;cursor:pointer;color:#888;line-height:1">▼</button>
+        </div>
         <button onclick="event.stopPropagation();deleteWaterCategory('${cat.id}')"
-          style="border:none;background:none;color:#e57373;cursor:pointer;font-size:0.85rem;padding:2px 4px">🗑</button>
+          style="border:none;background:none;color:#e57373;cursor:pointer;font-size:0.85rem;padding:2px 4px;flex-shrink:0">🗑</button>
       </div>
       <div class="category-folder-body" id="wcat-body-${cat.id}" style="${isLastCat ? '' : 'display:none'}">
         <div class="timeline" style="margin:0">
@@ -4012,39 +4012,6 @@ function renderWaterCategories(schedule) {
       </div>
     </div>`;
   }).join('');
-}
-
-// 비교 테이블
-function renderCompare() {
-  const tbody = document.getElementById('compare-tbody');
-  const schedule = calcWaterSchedule();
-  tbody.innerHTML = compareData.map((row, i) => {
-    const s = schedule[i];
-    const done = s && s.isActual;
-    const doneStyle = done ? 'opacity:0.4;' : '';
-    return `
-    <tr style="${doneStyle}">
-      <td data-label="차수"><strong>${row.round}</strong>${done ? ' <span style="font-size:0.7rem;color:#aaa">✓</span>' : ''}</td>
-      <td data-label="2025년" class="last-year">${row.last}</td>
-      <td data-label="2026년" class="this-year">${row.this}</td>
-      <td data-label="비료/제품">${row.fert}</td>
-    </tr>`;
-  }).join('');
-}
-
-// 작년 기록
-function renderLastYear() {
-  const container = document.getElementById('last-year-list');
-  container.innerHTML = lastYearData.map(log => `
-    <div class="log-item type-${log.type}">
-      <div class="log-header">
-        <div class="log-date">${fmtDate(log.date)}</div>
-        <div class="log-type-badge">${log.type}</div>
-      </div>
-      <div class="log-work">${log.work}</div>
-      ${log.fert ? `<div class="log-fert">${log.fert}</div>` : ''}
-      ${log.workers ? `<div class="log-memo">👥 ${log.workers}</div>` : ''}
-    </div>`).join('');
 }
 
 // 탭 전환
