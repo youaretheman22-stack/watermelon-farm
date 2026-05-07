@@ -4003,23 +4003,11 @@ function renderWaterCategories(schedule) {
     const catRounds = cat.rounds || [];
     const catSchedule = schedule.filter(s => catRounds.includes(s.round));
     const roundCards = catRounds.map((r, ri) => {
-      const isLastRound = ri === catRounds.length - 1;
       const s = schedule.find(x => x.round === r);
       const idx = schedule.findIndex(x => x.round === r);
       if (!s || idx < 0) return '';
-      let card = makeTimelineCard(s, idx, today);
-      // 마지막 대분류의 마지막 차수는 펼침
-      if (isLastCat && isLastRound) {
-        card = card.replace(
-          `id="round-zones-${r}" style="display:none;`,
-          `id="round-zones-${r}" style=";`
-        ).replace(
-          `id="round-toggle-${r}">▼`,
-          `id="round-toggle-${r}">▲`
-        );
-        openRoundSet.add(String(r));
-      }
-      return card;
+      // 구역 목록은 항상 접힌 상태로 (▼)
+      return makeTimelineCard(s, idx, today);
     }).filter(Boolean).join('');
 
     return `<div class="category-folder" style="margin-bottom:14px">
