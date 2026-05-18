@@ -1363,6 +1363,7 @@
     <div id="zone-date-edit-label" style="font-size:0.8rem;color:var(--ink-light);margin-bottom:12px"></div>
     <input type="hidden" id="zone-date-edit-round">
     <input type="hidden" id="zone-date-edit-zone">
+    <input type="hidden" id="zone-date-edit-logid">
     <!-- 기존 로그 목록 -->
     <div id="zone-date-all-logs" style="margin-bottom:12px"></div>
     <!-- 날짜 + 비료 입력 -->
@@ -2322,8 +2323,8 @@ function makeLogItemHTML(log) {
 function openZoneDateEdit(round, zone, date, logId) {
   document.getElementById('zone-date-edit-round').value = round;
   document.getElementById('zone-date-edit-zone').value = zone;
-  const today = new Date().toISOString().split('T')[0];
   document.getElementById('zone-date-edit-date').value = date || today;
+  document.getElementById('zone-date-edit-logid').value = logId || '';
   const color = ZONE_COLORS[zone] || 'var(--green-mid)';
   const label = ZONE_LABELS[zone] || zone;
 
@@ -2426,7 +2427,7 @@ function deleteZoneLog(logId, zone) {
   const msg = `${fmtDate(log.date)} 관주 기록을 삭제하시겠습니까?`;
   if (!confirm(msg)) return;
 
-  // roundZoneLogs에서 해당 logId 하나만 제거 (중복이 있어도 첫 번째만)
+  // roundZoneLogs에서 해당 logId 하나만 제거
   if (state.roundZoneLogs) {
     Object.keys(state.roundZoneLogs).forEach(key => {
       const arr = state.roundZoneLogs[key];
@@ -2439,27 +2440,37 @@ function deleteZoneLog(logId, zone) {
     });
   }
 
+  // zoneLogOrder에서도 제거
+  if (state.zoneLogOrder && state.zoneLogOrder[zone]) {
+    Object.keys(state.zoneLogOrder[zone]).forEach(r => {
+      if (state.zoneLogOrder[zone][r] === logId) {
+        state.zoneLogOrder[zone][r] = null;
+      }
+    });
+  }
+
+  // 실제 로그 삭제
   if (log.zones.length === 1) {
     state.logs = state.logs.filter(l => l.id !== logId);
   } else {
     log.zones = log.zones.filter(z => z !== zone);
   }
+
   saveToCloud();
   renderTimeline();
   renderZoneStatus();
-  const round = parseInt(document.getElementById('zone-date-edit-round').value);
-  openZoneDateEdit(round, zone, '');
+  closeZoneDateEdit();
 }
 
 function saveZoneDateEdit() {
   const round = parseInt(document.getElementById('zone-date-edit-round').value);
   const zone = document.getElementById('zone-date-edit-zone').value;
   const date = document.getElementById('zone-date-edit-date').value;
+  const savedLogId = parseInt(document.getElementById('zone-date-edit-logid').value) || null;
   if (!date) { closeZoneDateEdit(); return; }
 
   const duration = document.getElementById('zone-date-edit-duration').value.trim();
 
-  // zone-fert-list에서 비료 수집
   const ferts = [];
   document.querySelectorAll('#zone-fert-list .fertilizer-item').forEach(item => {
     const name = item.querySelector('.fert-name').value.trim();
@@ -2475,13 +2486,16 @@ function saveZoneDateEdit() {
     if (!state.zonePlantingDates) state.zonePlantingDates = {};
     state.zonePlantingDates[zone] = date;
   } else {
-    const zoneWaterLogs = state.logs
-      .filter(l => l.type === '관주' && l.zones && l.zones.includes(zone))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    // logId로 직접 찾기 (이동된 경우도 정확히 찾음)
     const ABC2 = ['연수형A','연수형B','연수형C'];
-    const orderIdx2 = getRoundOrderIdx(round);
-    const logIdx = ABC2.includes(zone) ? orderIdx2 - 4 : orderIdx2 - 1;
-    const targetLog = logIdx >= 0 ? getZoneLogAtIdx(zone, logIdx, round) : null;
+    let targetLog = savedLogId ? state.logs.find(l => l.id === savedLogId) : null;
+
+    // logId 없으면 기존 인덱스 방식으로 fallback
+    if (!targetLog) {
+      const orderIdx2 = getRoundOrderIdx(round);
+      const logIdx = ABC2.includes(zone) ? orderIdx2 - 4 : orderIdx2 - 1;
+      targetLog = logIdx >= 0 ? getZoneLogAtIdx(zone, logIdx, round) : null;
+    }
 
     if (targetLog) {
       if (targetLog.zones.length === 1) {
@@ -2511,11 +2525,9 @@ function saveZoneDateEdit() {
         id: newId, date, type: '관주', zones: [zone],
         work: `${round}차 관주`, workers: '', zoneDurations: zd, ferts, memo: ''
       });
-      // roundZoneLogs에 등록 (복수 기입 지원)
       const key = `${round}_${zone}`;
       if (!state.roundZoneLogs) state.roundZoneLogs = {};
       if (!state.roundZoneLogs[key]) {
-        // 기존에 이미 있는 로그가 있으면 함께 등록
         const existing = getZoneLogAtIdx(zone, (ABC2.includes(zone) ? getRoundOrderIdx(round) - 4 : getRoundOrderIdx(round) - 1), round);
         state.roundZoneLogs[key] = existing ? [existing.id, newId] : [newId];
       } else {
